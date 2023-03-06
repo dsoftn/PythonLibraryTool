@@ -1,0 +1,266 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>626</width>
+    <height>485</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Library analyzer</string>
+  </property>
+  <property name="windowIcon">
+   <iconset>
+    <normaloff>img/main_win.png</normaloff>img/main_win.png</iconset>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <widget class="QLabel" name="lbl_lib">
+    <property name="geometry">
+     <rect>
+      <x>0</x>
+      <y>0</y>
+      <width>601</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Enter any library, class, function...</string>
+    </property>
+   </widget>
+   <widget class="QLineEdit" name="txt_lib">
+    <property name="geometry">
+     <rect>
+      <x>0</x>
+      <y>20</y>
+      <width>601</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <pointsize>10</pointsize>
+     </font>
+    </property>
+    <property name="toolTip">
+     <string>Enter the name of the library you want to examine and hit Return.
+Example:
+	datetime
+or
+	sys
+or
+	matplotlib
+You can also choose a certain part of the library.
+Example:
+	datetime.datetime
+or
+	matplotlib.pie
+and you can also write:
+	from datetime import datetime
+or
+	from PyQt5.QtCore import QThread
+
+Note, Use the up and down arrows to navigate through your previous entries</string>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">color: rgb(0, 0, 127);
+background-color: rgb(170, 255, 255);</string>
+    </property>
+    <property name="text">
+     <string/>
+    </property>
+   </widget>
+   <widget class="QTreeWidget" name="tree_lib">
+    <property name="geometry">
+     <rect>
+      <x>0</x>
+      <y>110</y>
+      <width>401</width>
+      <height>281</height>
+     </rect>
+    </property>
+    <column>
+     <property name="text">
+      <string notr="true">1</string>
+     </property>
+    </column>
+   </widget>
+   <widget class="QLineEdit" name="txt_find">
+    <property name="geometry">
+     <rect>
+      <x>0</x>
+      <y>80</y>
+      <width>181</width>
+      <height>30</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <pointsize>10</pointsize>
+     </font>
+    </property>
+    <property name="toolTip">
+     <string>Type expresion you want to search for in search box and hit Return.
+
+Note, Use the up and down arrows to navigate through your previous entries</string>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">color: rgb(0, 0, 127);
+background-color: rgb(170, 255, 255);</string>
+    </property>
+    <property name="text">
+     <string/>
+    </property>
+    <property name="placeholderText">
+     <string>Find...</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="lbl_info">
+    <property name="geometry">
+     <rect>
+      <x>220</x>
+      <y>70</y>
+      <width>381</width>
+      <height>30</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string/>
+    </property>
+   </widget>
+   <widget class="Line" name="ln_sep">
+    <property name="geometry">
+     <rect>
+      <x>400</x>
+      <y>110</y>
+      <width>4</width>
+      <height>281</height>
+     </rect>
+    </property>
+    <property name="cursor">
+     <cursorShape>SplitHCursor</cursorShape>
+    </property>
+    <property name="lineWidth">
+     <number>0</number>
+    </property>
+    <property name="midLineWidth">
+     <number>0</number>
+    </property>
+    <property name="orientation">
+     <enum>Qt::Vertical</enum>
+    </property>
+   </widget>
+   <widget class="QTextEdit" name="txt_info">
+    <property name="geometry">
+     <rect>
+      <x>400</x>
+      <y>110</y>
+      <width>191</width>
+      <height>281</height>
+     </rect>
+    </property>
+    <property name="focusPolicy">
+     <enum>Qt::ClickFocus</enum>
+    </property>
+    <property name="toolTip">
+     <string/>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">background-color: rgb(208, 208, 208);</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="btn_analyze">
+    <property name="geometry">
+     <rect>
+      <x>0</x>
+      <y>50</y>
+      <width>151</width>
+      <height>30</height>
+     </rect>
+    </property>
+    <property name="focusPolicy">
+     <enum>Qt::ClickFocus</enum>
+    </property>
+    <property name="toolTip">
+     <string>Confirm your entry by clicking the button or press return in the input field.</string>
+    </property>
+    <property name="text">
+     <string>Analyze library</string>
+    </property>
+    <property name="icon">
+     <iconset>
+      <normaloff>img/inspect.png</normaloff>img/inspect.png</iconset>
+    </property>
+   </widget>
+   <widget class="QLabel" name="lbl_items_analyzed">
+    <property name="geometry">
+     <rect>
+      <x>170</x>
+      <y>50</y>
+      <width>301</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="palette">
+     <palette>
+      <active>
+       <colorrole role="WindowText">
+        <brush brushstyle="SolidPattern">
+         <color alpha="255">
+          <red>0</red>
+          <green>0</green>
+          <blue>127</blue>
+         </color>
+        </brush>
+       </colorrole>
+      </active>
+      <inactive>
+       <colorrole role="WindowText">
+        <brush brushstyle="SolidPattern">
+         <color alpha="255">
+          <red>0</red>
+          <green>0</green>
+          <blue>127</blue>
+         </color>
+        </brush>
+       </colorrole>
+      </inactive>
+      <disabled>
+       <colorrole role="WindowText">
+        <brush brushstyle="SolidPattern">
+         <color alpha="255">
+          <red>120</red>
+          <green>120</green>
+          <blue>120</blue>
+         </color>
+        </brush>
+       </colorrole>
+      </disabled>
+     </palette>
+    </property>
+    <property name="text">
+     <string>0 items analyzed.</string>
+    </property>
+   </widget>
+   <zorder>lbl_lib</zorder>
+   <zorder>txt_lib</zorder>
+   <zorder>tree_lib</zorder>
+   <zorder>txt_find</zorder>
+   <zorder>lbl_info</zorder>
+   <zorder>txt_info</zorder>
+   <zorder>ln_sep</zorder>
+   <zorder>btn_analyze</zorder>
+   <zorder>lbl_items_analyzed</zorder>
+  </widget>
+ </widget>
+ <tabstops>
+  <tabstop>txt_lib</tabstop>
+  <tabstop>txt_find</tabstop>
+  <tabstop>tree_lib</tabstop>
+ </tabstops>
+ <resources/>
+ <connections/>
+</ui>
