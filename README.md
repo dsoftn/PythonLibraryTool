@@ -2,7 +2,7 @@
 
 This program allows you to enter the name of any Python library and view information on its classes, methods, functions, constants, and more. The information is displayed in a QTreeWidget, making it easy for you to navigate and access the different components of the library. Simply enter the name of the library you're interested in and explore all the valuable resources it has to offer.
 
-![Screenshot](./screenshot.png)
+![Screenshot](./screenshot.jpg)
 
 ## Getting Started
 
