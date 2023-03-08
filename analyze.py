@@ -1,3 +1,4 @@
+import inspect
 from inspect import signature
 import json
 
@@ -43,38 +44,80 @@ class IspitajObjekat():
                 ostalo.append(att)
 
         # Snimanje u fajl
+        # Prikupljanje dodatnih informacija
+        # Argumenti
         try:
-            argumenti = str(signature(objekat))
+            argspec = inspect.getfullargspec(objekat)
+            a = ", ".join(argspec.args)
+            if type(a) != str:
+                a = ""
         except:
-            argumenti = ""
-        
+            a = ""
+        argumenti = a
+        # Docstring
+        try:
+            doc_string = inspect.getdoc(objekat)
+            if type(doc_string) != str:
+                doc_string = ""
+        except:
+            doc_string = ""
+        # Izvorni kod
+        try:
+            source = inspect.getsource(objekat)
+        except:
+            source = ""
+        # Hijerarhija nasledjivanja
+        try:
+            mro1 = inspect.getmro(object)
+            mro2 = [cls.__name__ for cls in mro1]
+            mro = ",".join(mro2)
+        except:
+            mro = ""
+        # Ispitivanje da li je ugradjeni Python objekat
+        try:
+            if inspect.isbuiltin(objekat):
+                py_obj = "True"
+            else:
+                py_obj = "False"
+        except:
+            py_obj = "Information not available"
+        # Naziv fajla u kom se objekat nalazi
+        try:
+            obj_file_name = inspect.getfile(objekat)
+        except:
+            obj_file_name = ""
+        # Naziv modula u kom se objekat nalazi
+        try:
+            obj_module = str(inspect.getmodule(objekat))
+        except:
+            obj_module = ""
+
         gg = open("result.txt", "w", encoding="utf-8")
         niz = []
         naziv_objekta = objekat.__name__
-        niz.append([0, argumenti, naziv_objekta])
+        niz.append([0, argumenti, naziv_objekta, doc_string, source, mro, py_obj, obj_file_name, obj_module])
 
         for i in klase:
-            niz.append([1, "", i])
+            niz.append([1, "", i, "", "", "", "", "", ""])
         for i in moduli:
-            niz.append([2, "", i])
+            niz.append([2, "", i, "", "", "", "", "", ""])
         for i in metodi:
-            niz.append([3, "", i])
+            niz.append([3, "", i, "", "", "", "", "", ""])
         for i in svojstva_property:
-            niz.append([4, "", i])
+            niz.append([4, "", i, "", "", "", "", "", ""])
         for i in funkcije:
-            niz.append([5, "", i])
+            niz.append([5, "", i, "", "", "", "", "", ""])
         for i in konstante:
-            niz.append([6, i[1], i[0]])
+            niz.append([6, i[1], i[0], "", "", "", "", "", ""])
         for i in ostalo:
-            niz.append([7, "", i])
+            niz.append([7, "", i, "", "", "", "", "", ""])
 
         json.dump(niz, gg)
         gg.close()
 
 
 
-
 class do_it():
     def __init__(self):
-        from datetime import MINYEAR
-        i = IspitajObjekat(MINYEAR)
+        import datetime
+        i = IspitajObjekat(datetime.time)

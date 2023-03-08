@@ -63,6 +63,8 @@ class Analyzer(QtWidgets.QMainWindow):
         self.mnu_tree_search_object.triggered.connect(self.mnu_search_triggered)
 
     def mnu_search_triggered(self):
+        if self.ui.tree_lib.currentItem == None:
+            self.update_progress("No current object. Please select object before operation can be performed.", "color=red, size=10")
         msg_title = "Search"
         msg_text = f"Search in {self.ui.tree_lib.currentItem().text(0)} for string: "
         msg_def_text = self.ui.txt_find.text()
@@ -71,6 +73,9 @@ class Analyzer(QtWidgets.QMainWindow):
             self.txt_find_return_pressed(search_text=result, object_id=self.ui.tree_lib.currentItem().data(0, QtCore.Qt.UserRole))
 
     def mnu_delete_triggered(self):
+        if self.ui.tree_lib.currentItem == None:
+            self.update_progress("No current object. Please select object before operation can be performed.", "color=red, size=10")
+        item = self.ui.tree_lib.currentItem()
         obj_id = self.ui.tree_lib.currentItem().data(0, QtCore.Qt.UserRole)
         rslt = self.conn.get_full_name(obj_id)
         msg_title = "Delete"
@@ -81,12 +86,14 @@ class Analyzer(QtWidgets.QMainWindow):
             affected = self.conn.delete_object_and_subobjects(obj_id)
             self.update_progress("done.  ", "color=green, size=12, n=false")
             self.update_progress(f"{str(affected)}  objects deleted !", "color=red, size=12")
-        self.update_tree()
+            self._remove_children(item)
+        else:
+            return
 
     def mnu_analyze_all_triggered(self):
         item = self.ui.tree_lib.currentItem()
-        if item == None:
-            return
+        if self.ui.tree_lib.currentItem == None:
+            self.update_progress("No current object. Please select object before operation can be performed.", "color=red, size=10")
         msg_title = "Warning"
         msg_text = "This operation may take a long time, are you sure you want to continue?"
         result = QtWidgets.QMessageBox.question(self, msg_title, msg_text, QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No, QtWidgets.QMessageBox.No)
@@ -94,25 +101,51 @@ class Analyzer(QtWidgets.QMainWindow):
             return
         self.update_progress("Started, please wait...", "bold=True, size=20, color=red")
         self.ui.lbl_items_analyzed.setVisible(True)
-        obj_id = self.ui.tree_lib.currentItem().data(0,QtCore.Qt.UserRole)
+        obj_id = item.data(0,QtCore.Qt.UserRole)
+        # First delete object and children
+        affected =  self.conn.delete_object_and_subobjects(obj_id, delete_children_only=True)
+        # Analyze object, add children, with recursion
         self._analize_object(obj_id, True)
+        # Obrisemo decu i dodamo samo direktne potomke
+        self._remove_children(item, protected_item=item)
+        children_to_add = self.conn.get_objects_for_parent(obj_id)
+        for i in children_to_add:
+            item_to_add = QTreeWidgetItem()
+            item_to_add.setText(0, i[2])
+            item_to_add.setData(0, QtCore.Qt.UserRole, i[0])
+            item.addChild(item_to_add)
         self.add_tree_items(item)
+        # Calculate number of new object added
+        total = self.conn.get_total_number_of_children_in_deep(obj_id) - affected
+        self.update_progress(f"{total} new objects added.", "bold=True, size=12, color=blue")
         self.update_progress("Finished !!!", "bold=True, size=60, color=red")
         self.ui.lbl_items_analyzed.setVisible(False)
 
-    def _analize_object(self, obj_id, recursion=False):
-        objects = self.conn.get_objects_for_parent(obj_id)
-        for i in objects:
-            if i[6] == 0:
-                obj_full_name = self.conn.get_full_name(i[0])
-                process = CalculateAndSave()
-                process.update_progress.connect(self.update_progress)
-                result, r1, r2 = process.calculate_and_save_all_data(False, obj_full_name, parent=i[0])
+    def _remove_children(self, item, protected_item=None):
+        while item.childCount() > 0:
+            child = item.child(0)
+            self._remove_children(child)
+        if item != protected_item:
+            parent = item.parent()
+            if parent == None:
+                self.ui.tree_lib.takeTopLevelItem(self.ui.tree_lib.indexOfTopLevelItem(item))
             else:
-                if recursion:
-                    children = self.conn.get_objects_for_parent(i[0])
-                    for j in children:
-                        self._analize_object(j[0])
+                parent.removeChild(item)
+
+    def _analize_object(self, obj_id, recursion=False):
+        process = CalculateAndSave()
+        process.update_progress.connect(self.update_progress)
+        
+        obj_full_name = self.conn.get_full_name(obj_id)
+        result, r1, r2 = process.calculate_and_save_all_data(False, obj_full_name, obj_id)
+        children = self.conn.get_objects_for_parent(obj_id)
+        for i in children:
+            child_full_name = self.conn.get_full_name(i[0])
+            result, r1, r2 = process.calculate_and_save_all_data(False, child_full_name, parent=i[0])
+            childs_children = self.conn.get_objects_for_parent(i[0])
+            if recursion:
+                for j in childs_children:
+                    self._analize_object(j[0])
         self.conn.populate_children()
 
     def last_text_manager(self, text="", txt_box_to_modify=None):
@@ -205,12 +238,12 @@ class Analyzer(QtWidgets.QMainWindow):
         has_children = self.conn.get_objects_for_parent(item_id)
         # has_children, full_name = self.show_item()
         full_name = self.conn.get_full_name(item_id)
+        process = CalculateAndSave()
+        process.update_progress.connect(self.update_progress)
         if len(has_children) == 0:
             # Process the data
             self.update_progress("Analyze object:", "color=#00699a, size=8, cursor_freeze=True")
             self.ui.lbl_items_analyzed.setVisible(True)
-            process = CalculateAndSave()
-            process.update_progress.connect(self.update_progress)
             result, r1, r2 = process.calculate_and_save_all_data(False, full_name, parent=item_id)
             self.conn.populate_children()
             children = self.conn.get_objects_for_parent(item_id)
@@ -225,6 +258,8 @@ class Analyzer(QtWidgets.QMainWindow):
                 self.update_progress("", "move=start")
             else:
                 self.update_progress("No new children found.", "color=#215541, size=8, cursor_freeze=True")
+        self.update_progress("Performing a deep analysis...", "color=darkblue, size=8, cursor_freeze=True")
+        process.combine_names_and_analyze(item_id)
         self.show_item(no_clear_text=True, at_begining=True)
             
     def update_current_item(self, children=[]):
@@ -265,7 +300,7 @@ class Analyzer(QtWidgets.QMainWindow):
         self.update_progress("", "cursor_freeze=True")
         self.update_progress("", "cursor_freeze=True")
         # Full name
-        self.update_progress("Full object name:", "cursor_freeze=True")
+        self.update_progress("Full object name: ", "cursor_freeze=True, n=false, size=10")
         full_name = self.conn.get_full_name(item_id)
         self.update_progress(full_name, "color=#00007f, size=12, cursor_freeze=True")
         self.update_progress("", "cursor_freeze=True")
@@ -279,6 +314,16 @@ class Analyzer(QtWidgets.QMainWindow):
         else:
             parent_name = self.conn.get_object_all(item[0][1])[0][2]
         self.update_progress(parent_name, "color=red, size=10, cursor_freeze=True")
+        # Python object
+        if item[0][10] != "":
+            self.update_progress("This is a built-in Python object: ", "size=10, n=False, cursor_freeze=True")
+            self.update_progress(item[0][10], "color=Blue, size=10, cursor_freeze=True")
+        # Docstrings
+        if item[0][7] != "":
+            self.update_progress("DocString: ", "size=10, n=False, cursor_freeze=True")
+            if len(item[0][7]) > 100:
+                self.update_progress("", "size=10, cursor_freeze=True")
+            self.update_progress(item[0][7], "color=darkgreen, size=10, cursor_freeze=True")
         # Value
         if item[0][3] != "":
             self.update_progress("Value: ", "size=10, n=False, cursor_freeze=True")
@@ -288,6 +333,24 @@ class Analyzer(QtWidgets.QMainWindow):
             self.update_progress("Arguments: ", "size=10, n=False, cursor_freeze=True")
             self.update_progress(item[0][4], "color=#329649, size=10, cursor_freeze=True")
         self.update_progress("", "cursor_freeze=True")
+        # Filename
+        if item[0][11] != "":
+            self.update_progress("Filename: ", "size=10, n=False, cursor_freeze=True")
+            self.update_progress(item[0][11], "color=#556878, size=10, cursor_freeze=True")
+        # Module
+        if item[0][12] != "":
+            self.update_progress("Module: ", "size=10, n=False, cursor_freeze=True")
+            self.update_progress(item[0][12], "color=#556878, size=10, cursor_freeze=True")
+        # Mro
+        if item[0][9] != "":
+            self.update_progress("MRO - Information about inheritance hierarchy: ", "size=10, n=False, cursor_freeze=True")
+            mro = item[0][9].split(",")
+            for i in mro:
+                self.update_progress(item[0][9], "color=blue, size=10, cursor_freeze=True")
+        # Source Code
+        if item[0][8] != "":
+            self.update_progress("Source Code: ", "size=18, cursor_freeze=True")
+            self.update_progress(item[0][8], "color=DarkGreen, size=10, cursor_freeze=True")
         # Children
         children = self.conn.get_objects_for_parent(item_id)
         if len(children) == 0:
@@ -721,6 +784,47 @@ class CalculateAndSave(QThread):
         # Load connection to database
         self.conn = Database()
 
+    def combine_names_and_analyze(self, object_id):
+        object_data = self.conn.get_object_all(object_id)
+        # if object_data[0][6] != 0:
+        #     return
+        full_name = self.conn.get_full_name(object_id)
+        bb = full_name.split(".")
+        comb = []
+        fr = ""
+        im = ""
+        ob = ""
+        for f in range(len(bb)):
+            for i in range(f+1, len(bb)+1):
+                fr = ".".join(bb[:f])
+                im = ".".join(bb[f:i])
+                ob = ".".join(bb[f:])
+                comb.append([fr, im , ob])
+        self._update_progress([f"BEGIN: ", "color=#5500ff, size=8"])
+        count = 0
+        for i in comb:
+            count += 1
+            if i[0] != "":
+                import_line = "        " + "from " + i[0] + " import " + i[1]
+            else:
+                import_line = "        " + "import " + i[1]
+            self.write_import_line_to_file(import_line)
+            self.write_object_line_to_file(i[2])
+            result = self.execute_file()
+            if result != "Ok":
+                self._update_progress([f"Attempt {str(count)}: ", "n=False"])
+                self._update_progress([f"{result[0]}", "color=red"])
+                # self._update_progress([import_line, "color=darkblue"])
+                # self._update_progress([i[2], "color=darkblue"])
+            else:
+                self._update_progress([f"Attempt {str(count)}: ", "n=False"])
+                self._update_progress(["Success !!!", "color=darkgreen"])
+                json_data = self._load_json_file()
+                data_to_update = self._make_data_to_append(json_data[0], object_data[0][1])
+                self.conn.update_object(object_id, data_to_update)
+                break
+        self._update_progress([f"END.", "color=#5500ff, size=8"])
+
     def calculate_and_save_all_data(self, recursion, command_text, parent=0):
         self.recursion = recursion
         txt = command_text.lower()
@@ -867,8 +971,15 @@ class CalculateAndSave(QThread):
             d_type_name = "Constant"
         elif d_type == 7:
             d_type_name = "Unclassified"
+        
+        doc_string = data_from_file[3]
+        source = data_from_file[4]
+        mro = data_from_file[5]
+        py_obj = data_from_file[6]
+        file_name = data_from_file[7]
+        module = data_from_file[8]
 
-        data_to_append = [d_parent, d_name, d_value, d_arg, d_type_name]
+        data_to_append = [d_parent, d_name, d_value, d_arg, d_type_name, doc_string, source, mro, py_obj, file_name, module]
         return data_to_append
 
     def _load_json_file(self):
@@ -941,6 +1052,7 @@ class Database():
         self.cur = self.conn.cursor()
         self._check_is_tables_exists()
         self.some_list = []  # List for various purposes
+        self.some_int = 0  # Integer for various purposes
 
     def complete_list_with_parents_until_root(self, objects_list):
         add_to = self._create_add_list_for_parents(objects_list)
@@ -1057,7 +1169,7 @@ class Database():
         self.conn.commit()
 
     def _check_is_tables_exists(self):
-        q = "CREATE TABLE IF NOT EXISTS object (object_id INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE NOT NULL, parent INTEGER, name TEXT, value TEXT, arguments TEXT, type TEXT (50), children INTEGER);"
+        q = "CREATE TABLE IF NOT EXISTS object (object_id INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE NOT NULL, parent INTEGER, name TEXT, value TEXT, arguments TEXT, type TEXT (50), children INTEGER, doc_string TEXT, source TEXT, mro TEXT, py_obj TEXT, file_name TEXT, module TEXT);"
         self.cur.execute(q)
         self.conn.commit()
         q = "CREATE TABLE IF NOT EXISTS setting (setting_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL UNIQUE, function TEXT (100) NOT NULL, val INTEGER, val_txt TEXT (255));"
@@ -1073,6 +1185,25 @@ class Database():
         else:
             return False
 
+    def update_object(self, object_id, data):
+        q = f"""UPDATE object
+                SET
+                    value = ?,
+                    arguments = ?,
+                    type = '{data[4]}', 
+                    doc_string = ?,
+                    source = ?,
+                    mro = ?,
+                    py_obj = '{data[8]}',
+                    file_name = ?,
+                    module = ?
+                WHERE 
+                    object_id = {str(object_id)}
+                        ;
+        """
+        self.cur.execute(q, (data[2], data[3], data[5], data[6], data[7], data[9], data[10]))
+        self.conn.commit()
+
     def add_object(self, data_list):
         for data in data_list:
             q = f"""INSERT INTO 
@@ -1082,17 +1213,29 @@ class Database():
                             value,
                             arguments,
                             type, 
-                            children)
+                            children,
+                            doc_string,
+                            source,
+                            mro,
+                            py_obj,
+                            file_name,
+                            module)
                     VALUES  (
                             {str(data[0])},
                             '{data[1]}',
                             ?,
                             ?,
                             '{data[4]}',
-                            0)
+                            0,
+                            ?,
+                            ?,
+                            ?,
+                            '{data[8]}',
+                            ?,
+                            ?)
                             ;
             """
-            self.cur.execute(q, (data[2], data[3]))
+            self.cur.execute(q, (data[2], data[3], data[5], data[6], data[7], data[9], data[10]))
         self.conn.commit()
         if len(data_list) == 1:
             result = self.cur.lastrowid
@@ -1168,9 +1311,13 @@ class Database():
         result = self.cur.fetchall()
         return result
 
-    def delete_object_and_subobjects(self, object_id):
+    def delete_object_and_subobjects(self, object_id, delete_children_only=False):
         self.some_list = []
-        self._delete_object_and_subobjects(object_id)
+        if delete_children_only:
+            protected_object = object_id
+        else:
+            protected_object = 0
+        self._delete_object_and_subobjects(object_id, protected_object)
         for i in self.some_list:
             q = f"DELETE FROM object WHERE object_id = {str(i)} ;"
             self.cur.execute(q)
@@ -1178,15 +1325,30 @@ class Database():
         self.populate_children()
         return len(self.some_list)
 
-    def _delete_object_and_subobjects(self, object_id):
-        self.some_list.append(object_id)
+    def _delete_object_and_subobjects(self, object_id, protected_object):
+        if object_id != protected_object:
+            self.some_list.append(object_id)
         res = self.get_objects_for_parent(object_id)
         for i in res:
             if i[6] != 0:
-                self._delete_object_and_subobjects(i[0])
+                self._delete_object_and_subobjects(i[0], protected_object)
             else:
                 self.some_list.append(i[0])
         
+    def get_total_number_of_children_in_deep(self, object_id):
+        self.some_int = 0
+        self._total_children(object_id)
+        self.some_int -= 1
+        return self.some_int
+
+    def _total_children(self, object_id):
+        children = self.get_objects_for_parent(object_id)
+        self.some_int += 1
+        for i in children:
+            if i[6] != 0:
+                self._total_children(i[0])
+            else:
+                self.some_int += 1
 
 
 app = QtWidgets.QApplication(sys.argv)
