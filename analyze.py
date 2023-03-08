@@ -119,5 +119,5 @@ class IspitajObjekat():
 
 class do_it():
     def __init__(self):
-        import datetime
-        i = IspitajObjekat(datetime.time)
+        from PyQt5.QtCore import PYQT_CONFIGURATION
+        i = IspitajObjekat(PYQT_CONFIGURATION)

@@ -17,6 +17,8 @@ class Analyzer(QtWidgets.QMainWindow):
         self.last_txt_idx = 0
         self.drag_mode = False  # If true then user resize widgets in progress
         self.object_list = []  # Lista objekata
+        self.some_document = ["", False, 0]  # [0]=html text from txt_info, [1]=is_text_changed, [2]=cursor
+        self.find_list = []  # List for locate searched item in tree
         # Setup GUI
         self.ui = main_ui.Ui_MainWindow()
         self.ui.setupUi(self)
@@ -38,10 +40,90 @@ class Analyzer(QtWidgets.QMainWindow):
         self.ui.tree_lib.currentChanged = self.tree_lib_current_changed
         self.ui.tree_lib.itemExpanded.connect(self.tree_lib_item_expanded)
         self.ui.tree_lib.customContextMenuRequested.connect(self.tree_custom_menu_request)
+        self.ui.txt_info.selectionChanged.connect(self.txt_info_selection_changed)
         # Update tree
         self.update_tree()
         # Show window
         self.show()
+
+    def txt_info_selection_changed(self):
+        cursor = self.ui.txt_info.textCursor()
+        selection = cursor.selectedText()
+        start = cursor.selectionStart()
+        end = cursor.selectionEnd()
+        document = self.ui.txt_info.document()
+        block = document.findBlock(start).text()
+        block = block.strip()
+        if block.find("  ") >= 0:
+            block = block[:block.find("  ")]
+        obj_comp = [x.strip() for x in block.split(".")]
+        obj_list = []
+        for i in obj_comp:
+            obj_list.append(i)
+            if i == selection:
+                break
+        result = self._find_if_exist(obj_list)
+        if result is None:
+            self.ui.frm_find.setVisible(False)
+            self.find_list = []
+            return
+        self.ui.frm_find.setVisible(True)
+        self.find_list = result
+        self.update_find_frm()
+
+    def update_find_frm(self):
+        txt = ""
+        for i in self.find_list:
+            txt = txt + i[1] + "."
+        txt = txt[:-1]
+        self.ui.lbl_find_full_name.setText(txt)
+        txt_main = self.find_list[len(self.find_list)-1][1]
+
+        font = self.ui.lbl_find.font()
+        size = font.pointSize()
+        fm = QtGui.QFontMetrics(font)
+        while fm.width(txt_main) > self.ui.lbl_find.width()-20:
+            size -= 1
+            font.setPointSize(size)
+            fm = QtGui.QFontMetrics(font)
+        self.ui.lbl_find.setFont(font)
+        self.ui.lbl_find.setText(txt_main)
+    
+    def frm_find_click(self):
+        item = None
+        parent = self.ui.tree_lib.invisibleRootItem()
+        result = self._find_item(parent, 0)
+        self.ui.frm_find.setVisible(False)
+        self.ui.tree_lib.setCurrentItem(result)
+        self.ui.tree_lib.setFocus()
+        result.setSelected(True)
+
+    def _find_item(self, parent, index):
+        parent.setExpanded(True)
+        for i in range(parent.childCount()):
+            item = parent.child(i)
+            if item.data(0, QtCore.Qt.UserRole) == self.find_list[index][0]:
+                if index == len(self.find_list)-1:
+                    return item
+                else:
+                    return self._find_item(item, index + 1)
+
+    def _find_if_exist(self, object_list):
+        if len(object_list) == 0:
+            return None
+        if len(object_list[0]) == 0:
+            return None
+        full_name = ".".join(object_list)
+        all_objects = self.conn.get_objects_with_name(object_list[-1])
+        for i in all_objects:
+            f_name_list = self.conn.get_full_name(i[0], get_list_with_id_and_name=True)
+            f_name = ""
+            for j in f_name_list:
+                f_name = f_name + j[1] + "."
+            f_name = f_name[:-1]
+            if f_name == full_name:
+                return f_name_list
+        return None
 
     def tree_custom_menu_request(self, pos):
         self.mnu_tree_menu.exec_(self.ui.tree_lib.mapToGlobal(pos))
@@ -224,7 +306,6 @@ class Analyzer(QtWidgets.QMainWindow):
             format.setBackground(QtGui.QColor("yellow"))
             cursor.mergeCharFormat(format)
             cursor = self.ui.txt_info.document().find(txt, cursor)
-        
 
     def tree_lib_item_expanded(self, item):
         self.add_tree_items(item)
@@ -232,6 +313,10 @@ class Analyzer(QtWidgets.QMainWindow):
     def tree_lib_current_changed(self, cur_index, prev_index):
         if self.ui.tree_lib.currentItem() == None:
             return
+        if self.ui.txt_info.toPlainText() != "":
+            self.some_document[0] = self.ui.txt_info.toHtml()
+            self.some_document[1] = True
+            self.some_document[2] = self.ui.txt_info.verticalScrollBar().value()
         self.ui.tree_lib.scrollToItem(self.ui.tree_lib.currentItem(), QTreeWidget.EnsureVisible)
         self.update_progress("", "cls, n=False")
         item_id = self.ui.tree_lib.currentItem().data(0, QtCore.Qt.UserRole)
@@ -287,15 +372,16 @@ class Analyzer(QtWidgets.QMainWindow):
             self.update_progress("", "move=start, n=false, freeze=True")
         self.update_progress("-"*80, "color=#00557f, size=10, cursor_freeze=True")
         # Name
-        size = 30
-        if len(item[0][2]) > 24:
-            size = 26
-        elif len(item[0][2]) > 29:
-            size=18
-        elif len(item[0][2]) > 34:
-            size=14
-        elif len(item[0][2]) < 14:
-            size = 46
+        size = 20
+        max_width = self.ui.txt_info.contentsRect().width() - 120
+        font = self.ui.txt_info.font()
+        font.setPointSize(size)
+        fm = QtGui.QFontMetrics(font)
+        while fm.width(item[0][2]) < max_width and size < 74:
+            size += 1
+            font.setPointSize(size)
+            fm = QtGui.QFontMetrics(font)
+        size -= 1
         self.update_progress(item[0][2], f"color=#aa0000, size={size}, bold=True, cursor_freeze=True, new_line=False")
         self.update_progress("", "cursor_freeze=True")
         self.update_progress("", "cursor_freeze=True")
@@ -345,8 +431,11 @@ class Analyzer(QtWidgets.QMainWindow):
         if item[0][9] != "":
             self.update_progress("MRO - Information about inheritance hierarchy: ", "size=10, n=False, cursor_freeze=True")
             mro = item[0][9].split(",")
-            for i in mro:
-                self.update_progress(item[0][9], "color=blue, size=10, cursor_freeze=True")
+            if len(mro) == 1 and mro[0] == "object":
+                self.update_progress("Not defined.", "color=blue, size=10, cursor_freeze=True")    
+            else:                
+                for i in mro:
+                    self.update_progress(item[0][9], "color=blue, size=10, cursor_freeze=True")
         # Source Code
         if item[0][8] != "":
             self.update_progress("Source Code: ", "size=18, cursor_freeze=True")
@@ -394,7 +483,6 @@ class Analyzer(QtWidgets.QMainWindow):
             if i[0] == tree_item.child(count).data(0, QtCore.Qt.UserRole):
                 cur_idx = count
             else:
-                print ("Error !")
                 for j in range(tree_item.childCount()):
                     if i[0] == tree_item.child(j).data(0, QtCore.Qt.UserRole):
                         cur_idx = j
@@ -454,7 +542,18 @@ class Analyzer(QtWidgets.QMainWindow):
             elif self.ui.txt_find.hasFocus():
                 self.last_text_manager(txt_box_to_modify=self.ui.txt_find)
         elif a0.key() == QtCore.Qt.Key_Escape:
-            self.ui.txt_info.setText("")
+            self.ui.frm_find.setVisible(False)
+            if self.some_document[1]:
+                tmp_document = self.ui.txt_info.toHtml()
+                tmp_scroll = self.ui.txt_info.verticalScrollBar().value()
+                self.ui.txt_info.setHtml(self.some_document[0])
+                self.ui.txt_info.verticalScrollBar().setValue(self.some_document[2])
+                self.some_document[0] = tmp_document
+                self.some_document[1] = False
+                self.some_document[2] = tmp_scroll
+            else:
+                self.ui.txt_info.setText("")
+                self.some_document[1] = True
         elif a0.key() == QtCore.Qt.Key_Return and a0.modifiers() == QtCore.Qt.ControlModifier:
             self._show_readme_file()
         return super().keyPressEvent(a0)
@@ -634,20 +733,32 @@ class Analyzer(QtWidgets.QMainWindow):
 
     def resize_widgets(self, x=0):
         # Resize widgets with window
+        w = self.contentsRect().width()
+        h = self.contentsRect().height()
         if self.drag_mode:
             self.ui.ln_sep.move(int(x), self.ui.ln_sep.pos().y())
             self.conn.set_setting_data("main_win_delimiter_line", value_integer=self.ui.ln_sep.pos().x())
         else:
             self.ui.ln_sep.move(int(self.width()*self.scale), self.ui.ln_sep.pos().y())
-        self.ui.lbl_lib.resize(self.width(), self.ui.lbl_lib.height())
-        self.ui.txt_lib.resize(self.width(), self.ui.txt_lib.height())
+        self.ui.lbl_lib.resize(w, self.ui.lbl_lib.height())
+        self.ui.txt_lib.resize(w, self.ui.txt_lib.height())
         # self.ui.prb_lib.resize(self.width(), self.ui.prb_lib.height())
-        self.ui.lbl_info.resize(self.width()-220, self.ui.lbl_info.height())
-        self.ui.tree_lib.resize(self.ui.ln_sep.pos().x(), self.height()-115)
+        self.ui.tree_lib.resize(self.ui.ln_sep.pos().x(), h-110)
         self.ui.txt_info.move(self.ui.ln_sep.pos().x(), self.ui.txt_info.pos().y())
-        self.ui.txt_info.resize(self.width()-self.ui.ln_sep.pos().x(), self.height()-115)
+        self.ui.txt_info.resize(w-self.ui.ln_sep.pos().x(), h-110)
+        # frm_find
+        self.ui.frm_find.move(self.ui.txt_info.pos().x() + self.ui.txt_info.width() - 290, self.ui.txt_info.pos().y())
 
     def mousePressEvent(self, a0: QtGui.QMouseEvent) -> None:
+        if self.ui.frm_find.isVisible:
+            x = a0.localPos().x()
+            y = a0.localPos().y()
+            fx = self.ui.frm_find.pos().x()
+            fy = self.ui.frm_find.pos().y()
+            fx1 = fx + self.ui.frm_find.width()
+            fy1 = fy + self.ui.frm_find.height()
+            if x > fx and x < fx1 and y > fy and y < fy1:
+                self.frm_find_click()
         x = a0.localPos().x()
         drag_point = [self.ui.ln_sep.pos().x(), self.ui.ln_sep.pos().x()+1, self.ui.ln_sep.pos().x()+2, self.ui.ln_sep.pos().x()+3]
         if a0.button() == QtCore.Qt.LeftButton and x in drag_point:
@@ -656,6 +767,7 @@ class Analyzer(QtWidgets.QMainWindow):
     
     def mouseMoveEvent(self, a0: QtGui.QMouseEvent) -> None:
         x = a0.localPos().x()
+        y = a0.localPos().y()
         if self.drag_mode and x > 99 and x < (self.width()-50):
             self.resize_widgets(x)
         return super().mouseMoveEvent(a0)
@@ -667,6 +779,10 @@ class Analyzer(QtWidgets.QMainWindow):
         return super().mouseReleaseEvent(a0)
 
     def load_setting(self):
+        style = "QTreeWidget::item:selected { background-color: green; }"
+        self.ui.tree_lib.setStyleSheet(style)
+        # Hide Find Frame
+        self.ui.frm_find.setVisible(False)
         # Get last search text
         result = self.conn.get_setting_data("last_search", get_text=True)
         if type(result) == str:
@@ -681,18 +797,26 @@ class Analyzer(QtWidgets.QMainWindow):
         w = self.conn.get_setting_data("main_win_w")
         h = self.conn.get_setting_data("main_win_h")
         self.move(x, y)
-        self.resize(w, h)
+        if w < 200 or h < 300:
+            self.resize(1200, 750)
+        else:
+            self.resize(w, h)
         self.setMinimumSize(200, 300)
         # Setup delimiter line pos
         delim = self.conn.get_setting_data("main_win_delimiter_line")
         if delim < 100:
             delim = 100
         self.ui.ln_sep.move(delim, self.ui.ln_sep.pos().y())
+        self.ui.ln_sep.resize(self.ui.ln_sep.width(), self.height()-110)
         # Define 'scale' - for calculating relative position of delimiter line in rezise event
         self.scale = delim / self.width()
         # Write ReadMe file in txt_info widget
         if os.path.exists("readme.txt"):
             self._show_readme_file()
+        # Define self.some_document
+        self.some_document[0] = self.ui.txt_info.toHtml()
+        self.some_document[1] = False
+        self.some_document[2] = self.ui.txt_info.verticalScrollBar().value()
             
     def _show_readme_file(self):
         self.ui.txt_info.setText("")
@@ -1106,14 +1230,16 @@ class Database():
             id_list_with_names.append([i, result])
         return id_list_with_names
 
-    def get_full_name(self, object_id):
+    def get_full_name(self, object_id, get_list_with_id_and_name=False):
         full_name = ""
+        full_name_list = []
         cur_id = object_id
         go_loop = True
 
         while go_loop:
             result = self.get_object_all(object_id=cur_id)
             full_name = full_name + result[0][2] + "."
+            full_name_list.append([result[0][0], result[0][2]])
             if result[0][1] == 0:
                 go_loop = False
             else:
@@ -1126,7 +1252,11 @@ class Database():
             full_name = full_name + a[c]  + "."
             c -= 1
         full_name = full_name[:-1]
-        return full_name
+        full_name_list = list(reversed(full_name_list))
+        if get_list_with_id_and_name:
+            return full_name_list
+        else:
+            return full_name
 
     def get_object_all(self, object_id=0, filter="", filter_exact_match=False):
 
@@ -1349,6 +1479,12 @@ class Database():
                 self._total_children(i[0])
             else:
                 self.some_int += 1
+
+    def get_objects_with_name(self, object_name):
+        q = "SELECT * FROM object WHERE name = ? ;"
+        self.cur.execute(q, (object_name,))
+        result = self.cur.fetchall()
+        return result
 
 
 app = QtWidgets.QApplication(sys.argv)
