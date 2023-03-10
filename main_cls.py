@@ -19,9 +19,13 @@ class Analyzer(QtWidgets.QMainWindow):
         self.last_txt = []
         self.last_txt_idx = 0
         self.drag_mode = False  # If true then user resize widgets in progress
-        self.object_list = []  # Lista objekata
-        self.some_document = ["", False, 0]  # [0]=html text from txt_info, [1]=is_text_changed, [2]=cursor
-        self.find_list = []  # List for locate searched item in tree
+        self.find_list = []  # List helps to loacate searched item in tree
+        self.pages = []  # Info box pages
+        self.pages_current = 0  # Current page 
+        self.pages_number = 20  # Number of pages to keep in memory
+        self.info_char_format = QtGui.QTextCharFormat()
+        self.info_color = QtGui.QColor()
+        self.info_font = QtGui.QFont()
         # Setup GUI
         self.ui = main_ui.Ui_MainWindow()
         self.ui.setupUi(self)
@@ -46,10 +50,75 @@ class Analyzer(QtWidgets.QMainWindow):
         self.ui.tree_lib.itemExpanded.connect(self.tree_lib_item_expanded)
         self.ui.tree_lib.customContextMenuRequested.connect(self.tree_custom_menu_request)
         self.ui.txt_info.selectionChanged.connect(self.txt_info_selection_changed)
+        self.ui.btn_nav_left.clicked.connect(self.btn_nav_left_click)
+        self.ui.btn_nav_right.clicked.connect(self.btn_nav_right_click)
+        self.ui.btn_nav_end.clicked.connect(self.btn_nav_end_click)
         # Update tree
         self.update_tree()
+        self.update_navigation_buttons()
         # Show window
         self.show()
+
+    def add_info_box_page(self, page: str = ""):
+        """Adds an Info box page.
+        Args:
+            page (str): The page in HTML format that is added, if it is omitted, the current page is taken from the Info box
+        """
+        if page != "":
+            self.pages.append(page)
+        else:
+            self.pages.append(self.ui.txt_info.toHtml())
+        if len(self.pages) > self.pages_number:
+            self.pages.pop(0)
+        self.pages_current = len(self.pages) - 1
+        self.update_navigation_buttons()
+
+    def btn_nav_left_click(self):
+        """Moves the current page pointer by -1
+        """
+        if self.pages_current <= 0:
+            return
+        self.pages_current -= 1
+        self.show_current_page()
+        self.update_navigation_buttons()
+    
+    def btn_nav_right_click(self):
+        """Moves the current page pointer by 1
+        """
+        if self.pages_current >= len(self.pages) - 1:
+            return
+        self.pages_current += 1
+        self.show_current_page()
+        self.update_navigation_buttons()
+
+    def btn_nav_end_click(self):
+        """Moves the current page pointer to end
+        """
+        self.pages_current = len(self.pages) - 1
+        if self.pages_current < 0:
+            self.pages_current = 0
+        self.show_current_page()
+        self.update_navigation_buttons()
+
+    def show_current_page(self):
+        """Displays the current page in the Info box
+        """
+        if len(self.pages) <= 0:
+            return
+        self.ui.txt_info.setText("")
+        self.ui.txt_info.setHtml(self.pages[self.pages_current])
+
+    def update_navigation_buttons(self):
+        """Sets navigation buttons enabled/disabled depending on the position of the current page.
+        """
+        self.ui.btn_nav_left.setDisabled(False)
+        self.ui.btn_nav_right.setDisabled(False)
+        self.ui.btn_nav_end.setDisabled(False)
+        if self.pages_current <= 0:
+            self.ui.btn_nav_left.setDisabled(True)
+        if self.pages_current >= len(self.pages) - 1:
+            self.ui.btn_nav_right.setDisabled(True)
+            self.ui.btn_nav_end.setDisabled(True)
 
     def txt_info_selection_changed(self):
         """Changed the selected text in the Info text box.
@@ -315,7 +384,7 @@ class Analyzer(QtWidgets.QMainWindow):
             txt = self.ui.txt_find.text()
         else:
             txt = search_text
-        self.update_progress("", "move=end")
+        self.update_progress("", "cls")
         self.update_progress("Search in ", "move=end, size=12, color=red, n=False")
         if object_id == 0:
             search_in = "ALL"
@@ -372,6 +441,7 @@ class Analyzer(QtWidgets.QMainWindow):
             format.setBackground(QtGui.QColor("yellow"))
             cursor.mergeCharFormat(format)
             cursor = self.ui.txt_info.document().find(txt, cursor)
+        self.add_info_box_page()
 
     def tree_lib_item_expanded(self, item):
         self.add_tree_items(item)
@@ -381,10 +451,6 @@ class Analyzer(QtWidgets.QMainWindow):
         """
         if self.ui.tree_lib.currentItem() == None:
             return
-        if self.ui.txt_info.toPlainText() != "":
-            self.some_document[0] = self.ui.txt_info.toHtml()
-            self.some_document[1] = True
-            self.some_document[2] = self.ui.txt_info.verticalScrollBar().value()
         self.ui.tree_lib.scrollToItem(self.ui.tree_lib.currentItem(), QTreeWidget.EnsureVisible)
         self.update_progress("", "cls, n=False")
         item_id = self.ui.tree_lib.currentItem().data(0, QtCore.Qt.UserRole)
@@ -414,6 +480,7 @@ class Analyzer(QtWidgets.QMainWindow):
         self.update_progress("Performing a deep analysis...", "color=darkblue, size=8, cursor_freeze=True")
         process.combine_names_and_analyze(item_id)
         self.show_item(no_clear_text=True, at_begining=True)
+        self.add_info_box_page()
             
     def update_current_item(self, children: list = []):
         """Adds to the current item its sub-items from the database.
@@ -612,19 +679,11 @@ class Analyzer(QtWidgets.QMainWindow):
                 self.last_text_manager(txt_box_to_modify=self.ui.txt_find)
         elif a0.key() == QtCore.Qt.Key_Escape:
             self.ui.frm_find.setVisible(False)
-            if self.some_document[1]:
-                tmp_document = self.ui.txt_info.toHtml()
-                tmp_scroll = self.ui.txt_info.verticalScrollBar().value()
-                self.ui.txt_info.setHtml(self.some_document[0])
-                self.ui.txt_info.verticalScrollBar().setValue(self.some_document[2])
-                self.some_document[0] = tmp_document
-                self.some_document[1] = False
-                self.some_document[2] = tmp_scroll
-            else:
-                self.ui.txt_info.setText("")
-                self.some_document[1] = True
+            self.ui.txt_info.setText("")
         elif a0.key() == QtCore.Qt.Key_Return and a0.modifiers() == QtCore.Qt.ControlModifier:
             self._show_readme_file()
+        elif a0.key() == QtCore.Qt.Key_S and a0.modifiers() == QtCore.Qt.ControlModifier:
+            self.add_info_box_page()
         return super().keyPressEvent(a0)
 
     def update_progress(self, event_data_list: list, t1: str = "", t2: str = ""):
@@ -639,12 +698,14 @@ class Analyzer(QtWidgets.QMainWindow):
             - passed string will be added to text in txt_info
         
         2. string with flags for txt_info
-            - this is a required element, it can be blank ("")
-            - flags can be delimited with comma, and here is available flags:
+              this is a required element, it can be blank ("")
+              if the flag is preceded by the @ sign then it becomes global and valid until changed
+              flags can be delimited with comma, and here is available flags:
             - 'cls' or 'clear' - clears txt_info text
-            - color=hex - text color, if omitted, black color is used (color=#000000)
-            - size=integer - font size, if omitted, point size 8 is used (size=8)
-            - font_name - font name
+            - (@)color=hex - text color, if omitted, black color is used (color=#000000)
+            - (@)background_color=hex - text color, if omitted, black color is used (color=#000000)
+            - (@)size=integer - font size, if omitted, point size 8 is used (size=8)
+            - (@)font_name - font name
             - new_line - True/False, if True go to new line after inserting text (type 'new_line' or just 'n')
             - cursor_freeze - True/False if True do not move cursor after inserting text (type 'cursor_freeze' or 'freeze' or just 'f')
             - cursor - Start/End move cursor to start or end of document after inserting text (type 'cursor' or just 'c')
@@ -685,25 +746,59 @@ class Analyzer(QtWidgets.QMainWindow):
         char_format = QtGui.QTextCharFormat()
         color = QtGui.QColor()
         font = QtGui.QFont()
+        char_format = self.info_char_format
+        color = self.info_color
+        font = self.info_font
         no_new_line = False
         cursor_freeze = False
         cursor = self.ui.txt_info.textCursor()
         for i in range(1, len(commands)):
-            if commands[i][0] == "color":
+            if commands[i][0] == "color" or commands[i][0] == "foreground color" or commands[i][0] == "foreground_color" or commands[i][0] == "fore_color" or commands[i][0] == "fc":
                 val = commands[i][1]
                 color.setNamedColor(val)
                 char_format.setForeground(color)
+            elif commands[i][0] == "@color" or commands[i][0] == "@foreground color" or commands[i][0] == "@foreground_color" or commands[i][0] == "@fore_color" or commands[i][0] == "@fc":
+                val = commands[i][1]
+                color.setNamedColor(val)
+                char_format.setForeground(color)
+                self.info_color.setNamedColor(val)
+                self.info_char_format.setForeground(self.info_color)
+            elif commands[i][0] == "background color" or commands[i][0] == "background" or commands[i][0] == "background_color" or commands[i][0] == "back_color" or commands[i][0] == "bc":
+                val = commands[i][1]
+                color.setNamedColor(val)
+                char_format.setBackground(color)
+            elif commands[i][0] == "@background color" or commands[i][0] == "@background" or commands[i][0] == "@background_color" or commands[i][0] == "@back_color" or commands[i][0] == "@bc":
+                val = commands[i][1]
+                color.setNamedColor(val)
+                char_format.setBackground(color)
+                self.info_color.setNamedColor(val)
+                self.info_char_format.setBackground(self.info_color)
             elif commands[i][0] == "size":
                 val = int(commands[i][1])
                 char_format.setFontPointSize(val)
+            elif commands[i][0] == "@size":
+                val = int(commands[i][1])
+                char_format.setFontPointSize(val)
+                self.info_char_format.setFontPointSize(val)
             elif commands[i][0] == "font_name":
                 val = commands[i][1]
                 char_format.setFontFamily(val)
+            elif commands[i][0] == "@font_name":
+                val = commands[i][1]
+                char_format.setFontFamily(val)
+                self.info_char_format.setFontFamily(val)
             elif commands[i][0] == "bold":
                 val = commands[i][1]
                 if val == "1" or val=="True":
                     font.setBold(True)
                     char_format.setFontWeight(QtGui.QFont.Bold)
+            elif commands[i][0] == "@bold":
+                val = commands[i][1]
+                if val == "1" or val=="True":
+                    font.setBold(True)
+                    char_format.setFontWeight(QtGui.QFont.Bold)
+                    self.info_font.setBold(True)
+                    self.info_char_format.setFontWeight(QtGui.QFont.Bold)
             elif commands[i][0] == "cls" or commands[i][0] == "clear":
                 self.ui.txt_info.setText("")
             elif commands[i][0] == "max":
@@ -838,6 +933,10 @@ class Analyzer(QtWidgets.QMainWindow):
         self.ui.txt_info.resize(w-self.ui.ln_sep.pos().x(), h-110)
         # frm_find
         self.ui.frm_find.move(self.ui.txt_info.pos().x() + self.ui.txt_info.width() - 290, self.ui.txt_info.pos().y())
+        # frm_navigation
+        self.ui.frm_navigation.move(w - self.ui.frm_navigation.width(), self.ui.frm_navigation.pos().y())
+        # frm_net
+        self.ui.frm_net.move(self.ui.ln_sep.pos().x(), self.ui.frm_net.pos().y())
 
     def mousePressEvent(self, a0: QtGui.QMouseEvent) -> None:
         if self.ui.frm_find.isVisible:
@@ -905,11 +1004,17 @@ class Analyzer(QtWidgets.QMainWindow):
         # Write ReadMe file in txt_info widget
         if os.path.exists("readme.txt"):
             self._show_readme_file()
-        # Define self.some_document
-        self.some_document[0] = self.ui.txt_info.toHtml()
-        self.some_document[1] = False
-        self.some_document[2] = self.ui.txt_info.verticalScrollBar().value()
-            
+        # Load Info box pages
+        result = self.conn.load_info_box_pages()
+        self.pages = []
+        for i in result:
+            self.pages.append(i[3])
+        self.pages_current = len(self.pages)
+        if self.pages_current < 0:
+            self.pages_current = 0
+        while len(self.pages) > self.pages_number:
+            self.pages.pop(0)
+
     def _show_readme_file(self):
         """Loads the readme.txt file and displays it in the Info box.
         """
@@ -991,6 +1096,8 @@ class Analyzer(QtWidgets.QMainWindow):
         self.conn.set_setting_data("main_win_h", h, "Main Window Geometry")
         # Save delimiter line position
         self.conn.set_setting_data("main_win_delimiter_line", self.ui.ln_sep.pos().x(), "Delimiter line position")
+        # Save Info box pages
+        self.conn.save_info_box_pages(self.pages)
 
 
 class CalculateAndSave(QThread):
@@ -1370,7 +1477,7 @@ class Database():
         q = "CREATE TABLE IF NOT EXISTS object (object_id INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE NOT NULL, parent INTEGER, name TEXT, value TEXT, arguments TEXT, type TEXT (50), children INTEGER, doc_string TEXT, source TEXT, mro TEXT, py_obj TEXT, file_name TEXT, module TEXT, member_of TEXT);"
         self.cur.execute(q)
         self.conn.commit()
-        q = "CREATE TABLE IF NOT EXISTS setting (setting_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL UNIQUE, function TEXT (100) NOT NULL, val INTEGER, val_txt TEXT (255));"
+        q = "CREATE TABLE IF NOT EXISTS setting (setting_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL UNIQUE, function TEXT (100) NOT NULL, val INTEGER, val_txt TEXT);"
         self.cur.execute(q)
         self.conn.commit()
     
@@ -1600,6 +1707,32 @@ class Database():
         self.cur.execute(q, (object_name,))
         result = self.cur.fetchall()
         return result
+
+    def load_info_box_pages(self) -> list:
+        """Loads all Info box pages from the database.
+        """
+        q = "SELECT * from setting WHERE function = 'Info_box_page' ORDER BY setting_id ;"
+        self.cur.execute(q)
+        result = self.cur.fetchall()
+        return result
+    
+    def save_info_box_pages(self, pages: list):
+        """Saves all Info box pages to the database.
+        """
+        q = "DELETE FROM setting WHERE function = 'Info_box_page' ;"
+        self.cur.execute(q)
+        self.conn.commit()
+        for i in pages:
+            q = f"""INSERT INTO
+                        setting(function, val, val_txt)
+                    VALUES
+                        ('Info_box_page', 0, ?)
+                        ;
+                    """
+            self.cur.execute(q, (i,))
+        self.conn.commit()
+
+
 
 
 if __name__ == "__main__":
