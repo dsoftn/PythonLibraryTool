@@ -31,6 +31,9 @@ The data is now recorded in the database and can be accessed quickly.
  # Type expresion you want to search for in search box and hit Return.
 Please note that our database only includes information on the direct subobjects of the Python library you selected, as well as any additional data that has been loaded as you navigate through the tree view. Therefore, any components that you haven't analyzed won't be included in the database. Additionally, you can select "Analyze all sub objects" in tree view context menu and and ensure that all data is available for search.
 
+ # By clicking on the search result, a button for finding the position of the object appears.
+The search results are displayed in the Info Box, click on one of the results to see it in the tree view
+
 ## Tree view context menu:
 
  # Delete object and all sub objects
@@ -41,8 +44,10 @@ This option will analyze the selected object and all its sub-objects in depth. T
 Searches only within the selected object and all its sub-objects. This is useful when you have a large number of analyzed libraries, so the search results of all libraries can sometimes be overwhelming.
 
 ## Note:
- # Press CTRL+Return to view this document.
- # Press ESC to clear this box.
+Press CTRL+Return to view this document.
+Press ESC to clear this box.
+Press Up/Down Arrow in search box to loop through past queries.
+Click on a search result to find it in the tree view.
 
  # ________________________
 #  Author: DsoftN, March 2023.

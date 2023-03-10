@@ -119,5 +119,5 @@ class IspitajObjekat():
 
 class do_it():
     def __init__(self):
-        from PyQt5.QtCore import PYQT_CONFIGURATION
-        i = IspitajObjekat(PYQT_CONFIGURATION)
+        import main_cls
+        i = IspitajObjekat(main_cls.Database._total_children)
