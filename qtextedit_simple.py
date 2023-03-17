@@ -1,4 +1,6 @@
 from PyQt5 import QtGui
+from PyQt5.QtCore import QThread
+
 
 
 class TxtBoxPrinter():
@@ -49,29 +51,36 @@ class TxtBoxPrinter():
         """
         return self.global_text_char_format
 
-    def print_button(self, button_type: str, button_text: str, button_data: str, font_size: int = 12):
+    def print_button(self, button_type: str, button_text: str, button_data: str, font_size: int = 12, foreground_color: str = "yellow", extra_data: str = ""):
         """Prints Button in the Text Box.
         Args:
             button_type (str): String that represent type of Button to print
-                'link' - '|^L|text|^L|data - Opens link (data) in browser
-                'code' - '|^C|text|^C|data - Shows example code from url (data)
+                'link' - |^L|text|^L|data - Opens link (data) in browser
+                'code' - |^C|text|^C|data - Shows example code from url (data)
+                'copy' - |^X|text|^X|data - Copies the code to the clipboard
             button_text (str): Button text
             button_data (str): Usually some url that should be opened or display data from it
             font_size (int)(optional): Font size
+            foreground_color (str): Text color
+            extra_data (str): Some extra data, like container number
         """
         if button_type.lower() == "link":
             type_string = "|^L|"
         elif button_type.lower() == "code":
             type_string = "|^C|"
+        elif button_type.lower() == "copy":
+            type_string = "|^X|"
         else:
             type_string = "|^?|"
         self.print_text(type_string, f"size={font_size}, n=false, font_name=Arial, fg=#ffff00, bc=#00007f, invisible=true")
-        self.print_text(button_text, f"size={font_size}, n=false, font_name=Arial, fg=yellow, bc=#00007f")
+        self.print_text(button_text, f"size={font_size}, n=false, font_name=Arial, fg={foreground_color}, bc=#00007f")
         self.print_text(type_string, f"size={font_size}, n=false, font_name=Arial, fg=#ffff00, bc=#00007f, invisible=true")
         self.print_text(button_data + type_string, "size=1, font_name=Arial, fg=#ffff00, bc=#00007f, invisible=true, n=false")
         end_position = self.print_text("", "size=1, n=false")
         end_string = str(end_position + 11)
         end_string = "0"*(10-len(end_string)) + end_string
+        if extra_data:
+            end_string = extra_data
         self.print_text(end_string, "size=1, invisible=true")
 
     def get_button_info(self) -> list:
@@ -93,6 +102,7 @@ class TxtBoxPrinter():
         elements_len = len(elements)
         button_data = elements[elements_len-2]
         button_text = elements[elements_len-3]
+        extra_data = elements[elements_len-1]
         # button_end_string = elements(elements_len-1)
 
         button_end_position = block_text.find("|^", button_position+1) + 8 + len(button_data)
@@ -104,12 +114,12 @@ class TxtBoxPrinter():
         # Move cursor to end of block
         # cursor.setPosition(int(button_end_string))
         
-        # Delete button if button_type is 'code'
+        # Delete button if button_type is 'code' and print 'Copy code' button
         if button_signature == "|^C|":
             cursor.select(QtGui.QTextCursor.BlockUnderCursor)
             cursor.removeSelectedText()
 
-        return [button_signature, button_text, button_data]
+        return [button_signature, button_text, button_data, extra_data]
 
     def print_code(self, code_text: str, code_title: str = "Code Example:"):
         """Prints the code example.
@@ -132,13 +142,241 @@ class TxtBoxPrinter():
             max_len = char_num
         # Print Title
         code_title = " " + code_title + " "*(max_len-len(code_title)+1)
-        self.print_text(code_title, "wrap_mode=false, color=black, bc=dark grey")
+        self.print_text(code_title, "color=black, bc=dark grey")
         # Print Code
-        for code_line in code_body:
-            code_line_text = " " + code_line + " "*(max_len-len(code_line)+1)
-            self.print_text(code_line_text, "wrap_mode=false")
+        self.code_prettify(code_body, max_len)
+        
+        # for code_line in code_body:
+        #     code_line_text = " " + code_line + " "*(max_len-len(code_line)+1)
+        #     self.code_prettify(code_line_text, "wrap_mode=false")
+        #     self.print_text(code_line_text, "wrap_mode=false")
         self.box.textCursor().setPosition(cursor_position, QtGui.QTextCursor.MoveAnchor)
         self.box.ensureCursorVisible()
+
+    def code_prettify(self, code_body: str, max_len: int, flags_string: str = ""):
+        """Adds colors to the code for easy viewing.
+        Args:
+            code_line (str): One line of code
+            flags_string (str): Default flags
+        """
+        if not flags_string:
+            flags_string = "do_nothing"
+        self.code_dict = self._init_code_dict()
+
+        multiline = 0
+        quota1 = False
+        quota2 = False
+        quota_mode = 0
+
+        for code_line in code_body:
+            code_line = " " + code_line + " "*(max_len-len(code_line)+1)
+            if quota_mode == 0:
+                self._check_import(code_line)
+            word = ""
+            color = "white"
+            comment_mode = False
+            object_method = False
+
+            count = 0
+            end_line = len(code_line[:-1])
+            for char in code_line[:-1]:
+
+                count += 1
+                if comment_mode:
+                    color = self.code_dict["comm_c"]
+                    self.print_text(char, f"{flags_string}, color={color}, n=false")
+                    continue
+                elif quota_mode:
+                    if char not in self.code_dict["quota"]:
+                        color = self.code_dict["quota_c"]
+                        self.print_text(char, f"{flags_string}, color={color}, n=false")
+                        continue
+
+                if char == "#":
+                    comment_mode = True
+                    color = self.code_dict["comm_c"]
+                    self.print_text(char, f"{flags_string}, color={color}, n=false")
+                    continue
+                elif char in self.code_dict["quota"]:
+                    if char == '"' and quota_mode != 2:
+                        if quota_mode == 1:
+                            quota_mode = 0
+                        else:
+                            quota_mode = 1
+                    if char == "'" and quota_mode != 1:
+                        if quota_mode == 2:
+                            quota_mode = 0
+                        else:
+                            quota_mode = 2
+                    color = self.code_dict["quota_c"]
+                    self.print_text(char, f"{flags_string}, color={color}, n=false")
+                    continue
+                
+                if char in self.code_dict["delim"]:
+                    if object_method:
+                        if char != ".":
+                            object_method = False
+                            if word:
+                                self._write_word(word, flags_string, print_color=self.code_dict["obj_method_c"])
+                    else:            
+                        if word in self.code_dict["obj"]:
+                            object_method = True
+                        if char != ".":
+                            object_method = False
+                        if word:
+                            if object_method:
+                                self._write_word(word, flags_string, print_color=self.code_dict["obj_method_c"])
+                            else:
+                                self._write_word(word, flags_string)
+                            word = ""
+                    color = self.code_dict["delim_c"]
+                    self.print_text(char, f"{flags_string}, n=false, color={color}")
+                    continue
+
+                if char in self.code_dict["number"] and word == "":
+                    self._write_word(char, flags_string)
+                    continue
+
+                word = word + char
+                if count == end_line and word != "":
+                    self._write_word(word, flags_string)
+
+            self.print_text("", flags_string)
+
+
+    def _write_word(self, word: str, flags_string: str, print_color: str = "white"):
+        color = print_color
+        bold = "False"
+        if word in self.code_dict["strong"]:
+            color = self.code_dict["strong_c"]
+            bold = "True"
+        elif word in self.code_dict["keyword"]:
+            color = self.code_dict["keyword_c"]
+        elif word in self.code_dict["func"]:
+            color = self.code_dict["func_c"]
+        elif word in self.code_dict["obj"]:
+            color = self.code_dict["obj_c"]
+            bold = "True"
+        elif word in self.code_dict["number"]:
+            color = self.code_dict["number_c"]
+
+        self.print_text(word, f"{flags_string}, color={color}, bold={bold}, n=false")
+
+    def _check_import(self, code_line: str):
+        code_line = code_line.strip()
+        if len(code_line) > 2:
+            if code_line[0:1] == "#" or code_line[0:3] == '"""':
+                return
+        import_pos = code_line.find("import")
+        add_obj = ""
+        if import_pos >= 0:
+            tmp = [x.strip() for x in code_line.split("import ") if x != ""]
+            if len(tmp) == 1:
+                tmp1 = ""
+                tmp2 = tmp[0]
+            else:
+                tmp1 = tmp[0]
+                tmp2 = tmp[1]
+            if tmp1:
+                tmp = [x.strip() for x in tmp1.split("from ") if x != ""]
+                if len(tmp) == 1:
+                    tmp3 = [x for x in tmp[0].split(".") if x != ""]
+                    for i in tmp3:
+                        self.code_dict["obj"].append(i)
+            tmp = [x.strip() for x in tmp2.split("as ") if x != ""]
+            if len(tmp) == 1:
+                self.code_dict["obj"].append(tmp[0])
+                tmp2 = [x.strip() for x in tmp[0].split(",") if x != ""]
+                for i in tmp2:
+                    self.code_dict["obj"].append(i)
+                tmp2 = [x.strip() for x in tmp[0].split(".") if x != ""]
+                for i in tmp2:
+                    self.code_dict["obj"].append(i)
+            elif len(tmp) > 1:
+                self.code_dict["obj"].append(tmp[0])
+                tmp3 = [x.strip() for x in tmp[1].split(" ") if x != ""]
+                if tmp3:
+                    self.code_dict["obj"].append(tmp3[0])
+
+    def _init_code_dict(self) -> dict:
+        """Creates a dictionary that defines keywords, operators, objects, parameters...
+        Returns:
+            dict: Dictionary
+        """
+        code_dict = {
+            "strong_c":  "#0000ff",
+            "keyword_c": "#c90aef",
+            "delim_c":   "#c28100",
+            "func_c":    "#ffff00",
+            "obj_c":     "#1a8b7e",
+            "comm_c":    "#97ff87",
+            "quota_c":   "#c56a6e",
+            "number_c":  "#810000",
+            "obj_method_c": "#f1ff8f",
+
+            "strong": [ "class",
+                        "def",
+                        "False",
+                        "is",
+                        "None",
+                        "True",
+                        "and",
+                        "global",
+                        "not",
+                        "or",
+                        "in"],
+            
+            "keyword": ["finally",
+                        "return",
+                        "continue",
+                        "for",
+                        "lambda",
+                        "try",
+                        "from",
+                        "nonlocal",
+                        "while",
+                        "del",
+                        "with",
+                        "as",
+                        "elif",
+                        "if",
+                        "yield",
+                        "assert",
+                        "else",
+                        "import",
+                        "pass",
+                        "break",
+                        "except",
+                        "raise"]
+        }
+        
+        code_dict["delim"] = [x for x in " =+-/*<>:,|()[]{};&^%$#@!'\"\\."]
+        code_dict["multiline_start"] = ['"', "[", "{"]
+        code_dict["multiline_end"] = ['"', "]", "}"]
+        code_dict["quota"] = ["'", '"']
+        code_dict["number"] = [x for x in "0123456789"]
+        
+        functions_string = """
+            abs()       divmod()    input()     open()      staticmethod()
+            all()       enumerate() int()       ord()       str()
+            any()       eval()      isinstance() pow()       sum()
+            bin()       exec()      issubclass() print()     super()
+            bool()      filter()    iter()      property()  tuple()
+            bytearray() float()     len()       range()     type()
+            bytes()     format()    list()      repr()      vars()
+            callable()  frozenset() locals()    round()     zip()
+            chr()       getattr()   map()       set()       __import__()
+            classmethod() globals()   max()       setattr()
+            compile()   hasattr()   memoryview() slice()     delattr()
+            complex()   hash()      min()       sorted()    help()
+        """
+        tmp = functions_string.split("()")
+        functions = [x.strip() for x in tmp]
+        code_dict["func"] = functions[:-1]
+
+        code_dict["obj"] = ["self"]
+
+        return code_dict
 
     def print_text(self, text_to_print: str = "`None|Ignore`", formating_flags: str = ""):
         """Prints the text in the Text Box.
@@ -197,8 +435,6 @@ class TxtBoxPrinter():
         commands = self._parse_flag_string(formating_flags, comm_syn)
         # Define local formating objects
         char_format = QtGui.QTextCharFormat(self.global_text_char_format)
-        text_option = QtGui.QTextOption()
-        text_option.setWrapMode(QtGui.QTextOption.NoWrap)
         color = QtGui.QColor(self.global_color)
         font = QtGui.QFont(self.global_font)
         # Set default values for variables
@@ -256,10 +492,6 @@ class TxtBoxPrinter():
                     val = self.global_font.pointSize()
                 char_format.setFontPointSize(val)
                 self.global_text_char_format.setFontPointSize(val)
-            # elif commands[i][0] in comm_syn["wrap_mode"]:
-            #     val = commands[i][1]
-            #     if val in val_syn["False"]:
-            #         char_format.setProperty(1, text_option.wrapMode())
             elif commands[i][0] in comm_syn["font_name"]:
                 val = commands[i][1]
                 if commands[i][1] in val_syn["Fixed_Font"]:

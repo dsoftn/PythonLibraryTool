@@ -3,9 +3,6 @@ import requests
 import googlesearch
 import urllib.request
 
-from dataclasses import dataclass, field
-
-
 
 class OnlineSearch():
     """Tries to find documentation and code examples for the requested object.
@@ -110,7 +107,7 @@ class OnlineSearch():
         result_page = urllib.request.urlopen(url)
         html = result_page.read().decode("utf-8")
         # Parse html with BeautifulSoup
-        soup = bs(html)
+        soup = bs(html, "lxml")
         urls = []
         # Find all urls and add them to list
         results = soup.find_all("span", class_="link-text")

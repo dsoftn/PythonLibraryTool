@@ -82,13 +82,28 @@ class Analyzer(QtWidgets.QMainWindow):
             return
         signature = button_info[0]
         data = button_info[2]
+        container_index = button_info[3]
+
         if signature == "|^L|":
             result = QtWidgets.QMessageBox.question(self, "Open link:", "Do you want to open this link in your browser ?", QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No | QtWidgets.QMessageBox.Cancel, QtWidgets.QMessageBox.Yes)
             if result == QtWidgets.QMessageBox.Yes:
                 webbrowser.open_new_tab(data)
         elif signature == "|^C|":
             self.show_code(data)
+        elif signature == "|^X|":
+            self.copy_code(data, container_index)
 
+    def copy_code(self, url: str, container_no: str):
+        """Copies code example to the clipboard.
+        Args:
+            url (str): The URL from which we are looking for the code
+            container_no (str): Container number that contains code
+        """
+        containers = self.online.get_code_examples_geeks_for_geeks(url)
+        container = containers[int(container_no)]
+        QtWidgets.QApplication.clipboard().setText(container[1])
+        QtWidgets.QMessageBox.information(self, "Copy", "The code has been successfully copied to the clipboard !", QtWidgets.QMessageBox.Ok)
+    
     def show_code(self, url: str):
         """Prints code example if Info Box.
         Args:
@@ -100,7 +115,9 @@ class Analyzer(QtWidgets.QMainWindow):
         containers = self.online.get_code_examples_geeks_for_geeks(url)
         for idx, container in enumerate(containers):
             self.box.print_text("")
-            self.box.print_text(f"Example code ({idx+1})", "size=16, color=dark green, bc=light grey, bold=true, underline=true")
+            self.box.print_text(f"Example code ({idx+1}/{len(containers)})     ", "size=16, color=dark green, bc=light grey, bold=true, underline=true, n=false")
+            self.box.print_button("copy", "Copy code", url, foreground_color="light blue", extra_data=str(idx), font_size=16)
+            self.box.print_text("")
             self.box.print_code(container[1], container[0])
 
         cursor_end_pos = self.box.print_text("")
@@ -126,11 +143,11 @@ class Analyzer(QtWidgets.QMainWindow):
         count = 1
         for url in urls:
             box.print_text(f"Search result ({count}):  ", "bc=light grey, size=14, bold=true, color=dark green, font_name=fixed, n=false")
-            box.print_button("link", "Open link in browser", url[0].strip())
+            box.print_button("link", "Open link in browser", url[0].strip(), foreground_color="white")
             box.print_text("")
             box.print_text(url[0])
             box.print_text(url[1], "fc=black, bc=light grey, size=9")
-            box.print_button("code", "Show example code", url[0].strip())
+            box.print_button("code", "Show example code", url[0].strip(), font_size=20)
             box.print_text("", "size=12")
             box.print_text("", "size=12")
             box.print_text("", "size=12")

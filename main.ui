@@ -158,6 +158,9 @@ background-color: rgb(170, 255, 255);</string>
     <property name="styleSheet">
      <string notr="true">background-color: rgb(208, 208, 208);</string>
     </property>
+    <property name="readOnly">
+     <bool>true</bool>
+    </property>
    </widget>
    <widget class="QPushButton" name="btn_analyze">
     <property name="geometry">
