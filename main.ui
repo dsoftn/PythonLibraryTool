@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>890</width>
+    <width>1191</width>
     <height>557</height>
    </rect>
   </property>
@@ -396,7 +396,7 @@ background-color: rgba(122, 255, 115, 95);</string>
      <rect>
       <x>400</x>
       <y>50</y>
-      <width>310</width>
+      <width>481</width>
       <height>61</height>
      </rect>
     </property>
@@ -511,11 +511,34 @@ background-color: rgba(122, 255, 115, 95);</string>
       </size>
      </property>
     </widget>
+    <widget class="QLabel" name="lbl_code_size">
+     <property name="geometry">
+      <rect>
+       <x>320</x>
+       <y>35</y>
+       <width>91</width>
+       <height>16</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Code font size:</string>
+     </property>
+    </widget>
+    <widget class="QComboBox" name="cmb_code_font_size">
+     <property name="geometry">
+      <rect>
+       <x>420</x>
+       <y>30</y>
+       <width>51</width>
+       <height>22</height>
+      </rect>
+     </property>
+    </widget>
    </widget>
    <widget class="QFrame" name="frm_navigation">
     <property name="geometry">
      <rect>
-      <x>720</x>
+      <x>930</x>
       <y>50</y>
       <width>171</width>
       <height>61</height>
@@ -606,6 +629,39 @@ background-color: rgba(122, 255, 115, 95);</string>
      </property>
     </widget>
    </widget>
+   <widget class="QPushButton" name="btn_abort">
+    <property name="geometry">
+     <rect>
+      <x>420</x>
+      <y>120</y>
+      <width>291</width>
+      <height>81</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <pointsize>28</pointsize>
+      <weight>75</weight>
+      <bold>true</bold>
+     </font>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">color: rgb(255, 0, 0);</string>
+    </property>
+    <property name="text">
+     <string>Abort</string>
+    </property>
+    <property name="icon">
+     <iconset>
+      <normaloff>img/abort.png</normaloff>img/abort.png</iconset>
+    </property>
+    <property name="iconSize">
+     <size>
+      <width>70</width>
+      <height>70</height>
+     </size>
+    </property>
+   </widget>
    <zorder>lbl_lib</zorder>
    <zorder>txt_lib</zorder>
    <zorder>tree_lib</zorder>
@@ -617,6 +673,7 @@ background-color: rgba(122, 255, 115, 95);</string>
    <zorder>frm_find</zorder>
    <zorder>frm_net</zorder>
    <zorder>frm_navigation</zorder>
+   <zorder>btn_abort</zorder>
   </widget>
  </widget>
  <tabstops>

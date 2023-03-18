@@ -1,9 +1,9 @@
 from PyQt5 import QtGui
-from PyQt5.QtCore import QThread
+from PyQt5.QtCore import QThread, QCoreApplication
 
 
 
-class TxtBoxPrinter():
+class TxtBoxPrinter(QThread):
     def __init__(self, QtWidgets_QTextEdit_object: object, use_txt_box_printer_formating: object = None):
         """Prints the text in the Text Box using method TxtBoxPrinter.print_text
         Default behavior: Prints one line of text and moves to a new line, placing the cursor at the end of the printout.
@@ -11,6 +11,7 @@ class TxtBoxPrinter():
             QtWidgets_QTextEdit_object (QTextEdit): The object in which the text is printed
             use_txt_box_writer_formating (TxtBoxPrinter)(optional): TxtBoxPrinter object from which text formatting will be downloaded
         """
+        super().__init__()
         # QTextEdit object to print in
         self.box = QtWidgets_QTextEdit_object
         # Define global formating objects
@@ -20,6 +21,7 @@ class TxtBoxPrinter():
         self.cursor = QtWidgets_QTextEdit_object.textCursor()
         self.no_new_line = False
         self.errors = []
+        self.abort_print = False  # If set to true code printing is aborted
         # Get formating
         if use_txt_box_printer_formating is not None:
             self._setup_global_formating(use_txt_box_printer_formating)
@@ -35,6 +37,9 @@ class TxtBoxPrinter():
         self.global_font = self_class.get_font()
         self.global_color = self_class.get_color()
         self.global_text_char_format = self_class.get_text_char_format()
+
+    def abort_printing(self):
+        self.abort_print = True
 
     def get_font(self) -> object:
         """Returns current QFont object
@@ -121,11 +126,13 @@ class TxtBoxPrinter():
 
         return [button_signature, button_text, button_data, extra_data]
 
-    def print_code(self, code_text: str, code_title: str = "Code Example:"):
+    def print_code(self, code_text: str, code_title: str = "Code Example:", font_size: int = 10) -> bool:
         """Prints the code example.
+        Returns:
+            bool: False if user aborted printing
         """
         # Set print format
-        cursor_position = self.print_text("", "@font_name=Source Code Pro, @color=white, @bc=black, @size=10")
+        cursor_position = self.print_text("", f"@font_name=Source Code Pro, @color=white, @bc=black, @size={str(font_size)}")
         # Transform text into lines
         code_body = code_text.split("\n")
         # Get max lenght
@@ -133,8 +140,8 @@ class TxtBoxPrinter():
         for code_line in code_body:
             if len(code_line) > max_len:
                 max_len = len(code_line)
-        max_len = max_len + 2  # addig 2 for blank space left and right
-        font = QtGui.QFont("Source Code Pro", 10)
+        max_len = max_len + 2  # adding 2 for blank space left and right
+        font = QtGui.QFont("Source Code Pro", font_size)
         fm = QtGui.QFontMetrics(font)
         char_width = fm.widthChar("H")
         char_num = int(self.box.contentsRect().width() / char_width) - 6
@@ -152,6 +159,11 @@ class TxtBoxPrinter():
         #     self.print_text(code_line_text, "wrap_mode=false")
         self.box.textCursor().setPosition(cursor_position, QtGui.QTextCursor.MoveAnchor)
         self.box.ensureCursorVisible()
+        if self.abort_print:
+            self.abort_print = False
+            return False
+        else:
+            return True
 
     def code_prettify(self, code_body: str, max_len: int, flags_string: str = ""):
         """Adds colors to the code for easy viewing.
@@ -167,9 +179,18 @@ class TxtBoxPrinter():
         quota1 = False
         quota2 = False
         quota_mode = 0
-
+        big_quota_mode = False
         for code_line in code_body:
+            if self.abort_print:
+                break
+            code_line = code_line.rstrip()
             code_line = " " + code_line + " "*(max_len-len(code_line)+1)
+            tmp = code_line.find('"""')
+            if tmp >= 0:
+                big_quota_mode = not big_quota_mode
+                if code_line[tmp+2:].find('"""') >= 0:
+                    big_quota_mode = not big_quota_mode
+            
             if quota_mode == 0:
                 self._check_import(code_line)
             word = ""
@@ -178,14 +199,14 @@ class TxtBoxPrinter():
             object_method = False
 
             count = 0
-            end_line = len(code_line[:-1])
-            for char in code_line[:-1]:
-
+            end_line = len(code_line)
+            for char in code_line:
                 count += 1
+
                 if comment_mode:
                     color = self.code_dict["comm_c"]
-                    self.print_text(char, f"{flags_string}, color={color}, n=false")
-                    continue
+                    self.print_text(code_line[count-1:], f"{flags_string}, n=false, color={color}")
+                    break
                 elif quota_mode:
                     if char not in self.code_dict["quota"]:
                         color = self.code_dict["quota_c"]
@@ -218,6 +239,7 @@ class TxtBoxPrinter():
                             object_method = False
                             if word:
                                 self._write_word(word, flags_string, print_color=self.code_dict["obj_method_c"])
+                                word = ""
                     else:            
                         if word in self.code_dict["obj"]:
                             object_method = True
@@ -229,7 +251,10 @@ class TxtBoxPrinter():
                             else:
                                 self._write_word(word, flags_string)
                             word = ""
-                    color = self.code_dict["delim_c"]
+                    if word == "" and code_line[count-1:].strip() == "":
+                        self.print_text(code_line[count-1:], f"{flags_string}, n=false")
+                        break
+                    color = self._delim_color(char)
                     self.print_text(char, f"{flags_string}, n=false, color={color}")
                     continue
 
@@ -242,7 +267,25 @@ class TxtBoxPrinter():
                     self._write_word(word, flags_string)
 
             self.print_text("", flags_string)
+            if big_quota_mode != quota_mode:
+                big_quota_mode = False
+                quota_mode = False
 
+    def _delim_color(self, delim_char):
+        color = self.code_dict["delim_c"]
+        if delim_char in ["(", ")"]:
+            color = "#ffff00"
+        elif delim_char in ["[", "]"]:
+            color = "#00fafa"
+        elif delim_char in ["{", "}"]:
+            color = "#aaff00"
+        elif delim_char in ["+", "-", "<", ">", "*"]:
+            color = "#c1c191"
+        elif delim_char in ["'", '"']:
+            color = "#ff5500"
+        elif delim_char in [","]:
+            color = "yellow"
+        return color        
 
     def _write_word(self, word: str, flags_string: str, print_color: str = "white"):
         color = print_color
@@ -259,11 +302,25 @@ class TxtBoxPrinter():
             bold = "True"
         elif word in self.code_dict["number"]:
             color = self.code_dict["number_c"]
+        elif word in self.code_dict["user_func"]:
+            color = self.code_dict["user_func_c"]
+            bold = "True"
 
         self.print_text(word, f"{flags_string}, color={color}, bold={bold}, n=false")
 
     def _check_import(self, code_line: str):
         code_line = code_line.strip()
+
+        if len(code_line) > 5:
+            if code_line[0:3] == "def" and code_line.find("(") > 0:
+                add_obj = code_line[3:code_line.find("(")].strip()
+                self.code_dict["user_func"].append(add_obj)
+                return
+            elif code_line[0:5] == "class" and code_line.find("(") > 0:
+                add_obj = code_line[5:code_line.find("(")].strip()
+                self.code_dict["user_func"].append(add_obj)
+                return
+
         if len(code_line) > 2:
             if code_line[0:1] == "#" or code_line[0:3] == '"""':
                 return
@@ -304,15 +361,16 @@ class TxtBoxPrinter():
             dict: Dictionary
         """
         code_dict = {
-            "strong_c":  "#0000ff",
+            "strong_c":  "#0852ff",
             "keyword_c": "#c90aef",
             "delim_c":   "#c28100",
             "func_c":    "#ffff00",
             "obj_c":     "#1a8b7e",
             "comm_c":    "#97ff87",
-            "quota_c":   "#c56a6e",
-            "number_c":  "#810000",
+            "quota_c":   "#aa5500",
+            "number_c":  "#d50000",
             "obj_method_c": "#f1ff8f",
+            "user_func_c":  "#b6b600",
 
             "strong": [ "class",
                         "def",
@@ -375,6 +433,7 @@ class TxtBoxPrinter():
         code_dict["func"] = functions[:-1]
 
         code_dict["obj"] = ["self"]
+        code_dict["user_func"] = []
 
         return code_dict
 
@@ -599,6 +658,7 @@ class TxtBoxPrinter():
             cursor.insertText(txt, char_format)
         self.box.textCursor().setPosition(cursor.position())
         self.box.ensureCursorVisible()
+        QCoreApplication.processEvents()
         return cursor.position()
 
     def _rgb_values(self, rgb_string: str) -> tuple:

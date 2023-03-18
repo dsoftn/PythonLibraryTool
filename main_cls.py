@@ -26,6 +26,8 @@ class Analyzer(QtWidgets.QMainWindow):
         self.pages = []  # Info box pages
         self.pages_current = 0  # Current page 
         self.pages_number = 20  # Number of pages to keep in memory
+        self.abort_analyze = False
+        self.analyze_in_progress = False
         self.info_char_format = QtGui.QTextCharFormat()
         self.info_color = QtGui.QColor()
         self.info_font = QtGui.QFont()
@@ -63,6 +65,7 @@ class Analyzer(QtWidgets.QMainWindow):
         self.ui.btn_nav_left.clicked.connect(self.btn_nav_left_click)
         self.ui.btn_nav_right.clicked.connect(self.btn_nav_right_click)
         self.ui.btn_nav_end.clicked.connect(self.btn_nav_end_click)
+        self.ui.btn_abort.clicked.connect(self.btn_abort_click)
 
         self.ui.btn_net_doc.clicked.connect(self.btn_net_doc_click)
         self.ui.btn_net_code.clicked.connect(self.btn_net_code_click)
@@ -72,6 +75,16 @@ class Analyzer(QtWidgets.QMainWindow):
         # Show window
         self.show()
 
+
+    def btn_abort_click(self):
+        self.ui.btn_abort.setText("Wait...")
+        if self.analyze_in_progress:
+            self.abort_analyze = True
+        else:
+            self.box.abort_printing()
+
+        self.ui.btn_abort.setVisible(False)
+        self.ui.btn_abort.setText("Abort")
 
     def activate_info_box_button(self, button_info: list):
         """Handles button click in Info Box.
@@ -109,16 +122,26 @@ class Analyzer(QtWidgets.QMainWindow):
         Args:
             url (str): The URL from which we are looking for the code
         """
+        self.ui.btn_abort.setVisible(True)
         cursor = self.ui.txt_info.textCursor()
         cursor_start__pos = cursor.position()
         self.box.print_text("", "size=10")
+        result = True
         containers = self.online.get_code_examples_geeks_for_geeks(url)
         for idx, container in enumerate(containers):
             self.box.print_text("")
             self.box.print_text(f"Example code ({idx+1}/{len(containers)})     ", "size=16, color=dark green, bc=light grey, bold=true, underline=true, n=false")
             self.box.print_button("copy", "Copy code", url, foreground_color="light blue", extra_data=str(idx), font_size=16)
             self.box.print_text("")
-            self.box.print_code(container[1], container[0])
+            result = self.box.print_code(container[1], container[0], font_size=self.ui.cmb_code_font_size.currentData())
+            if not result:
+                break
+
+        self.ui.btn_abort.setVisible(False)
+        if not result:
+            self.box.print_text("")
+            self.box.print_text("User aborted.", "color=red, size = 30, bold=true")
+            return
 
         cursor_end_pos = self.box.print_text("")
 
@@ -417,6 +440,9 @@ class Analyzer(QtWidgets.QMainWindow):
         # First delete object and children
         affected =  self.conn.delete_object_and_subobjects(obj_id, delete_children_only=True)
         # Analyze object, add children, with recursion
+        self.abort_analyze = False
+        self.analyze_in_progress = True
+        self.ui.btn_abort.setVisible(True)
         self._analize_object(obj_id, True)
         # Remove sub objects
         self._remove_children(item, protected_item=item)
@@ -428,10 +454,17 @@ class Analyzer(QtWidgets.QMainWindow):
             item.addChild(item_to_add)
         self.add_tree_items(item)
         # Calculate number of new object added
-        total = self.conn.get_total_number_of_children_in_deep(obj_id) - affected
-        self.update_progress(f"{total} new objects added.", "bold=True, size=12, color=blue")
-        self.update_progress("Finished !!!", "bold=True, size=60, color=red")
+        if self.abort_analyze:
+            self.update_progress("User Aborted !", "bold=True, size=30, color=red")
+        else:            
+            total = self.conn.get_total_number_of_children_in_deep(obj_id) - affected
+            self.update_progress(f"{total} new objects added.", "bold=True, size=12, color=blue")
+            self.update_progress("Finished !!!", "bold=True, size=60, color=red")
+        
         self.ui.lbl_items_analyzed.setVisible(False)
+        self.ui.btn_abort.setVisible(False)
+        self.analyze_in_progress = False
+        self.abort_analyze = False
 
     def _remove_children(self, item: QtWidgets.QTreeWidgetItem, protected_item: QtWidgets.QTreeWidgetItem = None):
         """Deletes all sub-items in the Tree view in depth.
@@ -463,6 +496,8 @@ class Analyzer(QtWidgets.QMainWindow):
         result, r1, r2 = process.calculate_and_save_all_data(False, obj_full_name, obj_id)
         children = self.conn.get_objects_for_parent(obj_id)
         for i in children:
+            if self.abort_analyze:
+                break
             child_full_name = self.conn.get_full_name(i[0], add_virtual_name=True)
             result, r1, r2 = process.calculate_and_save_all_data(False, child_full_name, parent=i[0])
             childs_children = self.conn.get_objects_for_parent(i[0])
@@ -811,6 +846,16 @@ class Analyzer(QtWidgets.QMainWindow):
             self._show_readme_file()
         elif a0.key() == QtCore.Qt.Key_S and a0.modifiers() == QtCore.Qt.ControlModifier:
             self.add_info_box_page()
+        elif a0.key() == QtCore.Qt.Key_O and a0.modifiers() == QtCore.Qt.ControlModifier:
+            file_name, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Chose Python File: ", os.getcwd())
+            if file_name:
+                with open(file_name, "r", encoding="utf-8") as open_file:
+                    result = open_file.readlines()
+                python_code = ""
+                for i in result:
+                    python_code = python_code + i
+                self.box.print_text("", "cls")
+                self.box.print_code(python_code, file_name, font_size=self.ui.cmb_code_font_size.currentData())
         return super().keyPressEvent(a0)
 
     def update_progress(self, event_data_list: list, t1: str = "", t2: str = ""):
@@ -1103,6 +1148,15 @@ class Analyzer(QtWidgets.QMainWindow):
         self.ui.tree_lib.setStyleSheet(style)
         # Hide Find Frame
         self.ui.frm_find.setVisible(False)
+        # Hide Abort button
+        self.ui.btn_abort.setVisible(False)
+        # Fill combo - Code Font sizes
+        self.ui.cmb_code_font_size.addItem("6", 6)
+        self.ui.cmb_code_font_size.addItem("8", 8)
+        self.ui.cmb_code_font_size.addItem("10", 10)
+        self.ui.cmb_code_font_size.addItem("12", 12)
+        self.ui.cmb_code_font_size.addItem("14", 14)
+        self.ui.cmb_code_font_size.setCurrentIndex(2)
         # Get last search text
         result = self.conn.get_setting_data("last_search", get_text=True)
         if type(result) == str:
@@ -1276,8 +1330,6 @@ class CalculateAndSave(QThread):
             if result != "Ok":
                 self._update_progress([f"Attempt {str(count)}: ", "n=False"])
                 self._update_progress([f"{result[0]}", "color=red"])
-                # self._update_progress([import_line, "color=darkblue"])
-                # self._update_progress([i[2], "color=darkblue"])
             else:
                 self._update_progress([f"Attempt {str(count)}: ", "n=False"])
                 self._update_progress(["Success !!!", "color=darkgreen"])
