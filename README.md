@@ -8,7 +8,18 @@ This program allows you to enter the name of any Python library and view informa
 
 ### Prerequisites 
 
-To run this program, you'll need to have Python 3 and the PyQt5 library installed on your computer.
+Before running this application, make sure you have the following installed:
+	- Python 3.x
+Libraries:
+	- PyQt5
+	- importlib
+	- json
+	- webbrowser
+	- bs4 (BeautifulSoup)
+	- requests
+	- urllib
+	- inspect
+	- lxml
 
 ## Usage 
 
