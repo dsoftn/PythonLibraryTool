@@ -244,6 +244,9 @@ background-color: rgb(170, 255, 255);</string>
       <height>120</height>
      </rect>
     </property>
+    <property name="toolTip">
+     <string>Find this object in Tree View</string>
+    </property>
     <property name="autoFillBackground">
      <bool>false</bool>
     </property>
@@ -468,6 +471,9 @@ background-color: rgba(122, 255, 115, 95);</string>
        <height>31</height>
       </rect>
      </property>
+     <property name="toolTip">
+      <string>Find online documentation for the currently selected object</string>
+     </property>
      <property name="styleSheet">
       <string notr="true">color: rgb(0, 0, 127);</string>
      </property>
@@ -493,6 +499,9 @@ background-color: rgba(122, 255, 115, 95);</string>
        <width>150</width>
        <height>31</height>
       </rect>
+     </property>
+     <property name="toolTip">
+      <string>Find online code examples that use the currently selected object</string>
      </property>
      <property name="styleSheet">
       <string notr="true">color: rgb(0, 0, 127);</string>
@@ -533,6 +542,9 @@ background-color: rgba(122, 255, 115, 95);</string>
        <height>22</height>
       </rect>
      </property>
+     <property name="toolTip">
+      <string>Select the font size that will be used to print the Code Examples</string>
+     </property>
     </widget>
    </widget>
    <widget class="QFrame" name="frm_navigation">
@@ -558,6 +570,9 @@ background-color: rgba(122, 255, 115, 95);</string>
        <width>51</width>
        <height>51</height>
       </rect>
+     </property>
+     <property name="toolTip">
+      <string>Move one page backward</string>
      </property>
      <property name="text">
       <string/>
@@ -585,6 +600,9 @@ background-color: rgba(122, 255, 115, 95);</string>
        <height>51</height>
       </rect>
      </property>
+     <property name="toolTip">
+      <string>Move one page forward</string>
+     </property>
      <property name="text">
       <string/>
      </property>
@@ -611,6 +629,9 @@ background-color: rgba(122, 255, 115, 95);</string>
        <height>51</height>
       </rect>
      </property>
+     <property name="toolTip">
+      <string>Go to the last page</string>
+     </property>
      <property name="text">
       <string/>
      </property>
@@ -632,9 +653,9 @@ background-color: rgba(122, 255, 115, 95);</string>
    <widget class="QPushButton" name="btn_abort">
     <property name="geometry">
      <rect>
-      <x>420</x>
-      <y>120</y>
-      <width>291</width>
+      <x>400</x>
+      <y>50</y>
+      <width>481</width>
       <height>81</height>
      </rect>
     </property>
@@ -644,6 +665,9 @@ background-color: rgba(122, 255, 115, 95);</string>
       <weight>75</weight>
       <bold>true</bold>
      </font>
+    </property>
+    <property name="toolTip">
+     <string>Terminates the execution of an operation in progress</string>
     </property>
     <property name="styleSheet">
      <string notr="true">color: rgb(255, 0, 0);</string>

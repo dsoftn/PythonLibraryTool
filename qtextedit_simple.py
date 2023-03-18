@@ -95,6 +95,10 @@ class TxtBoxPrinter(QThread):
             list: [button_signature( |^?| ), button_text, button_data]
         """
         cursor = self.box.textCursor()
+        # Check if user has any selected text
+        if cursor.selectedText():
+            return []
+
         block = cursor.block()
         block_text = block.text()
         cursor_position_in_block = cursor.position() - block.position()
@@ -108,16 +112,12 @@ class TxtBoxPrinter(QThread):
         button_data = elements[elements_len-2]
         button_text = elements[elements_len-3]
         extra_data = elements[elements_len-1]
-        # button_end_string = elements(elements_len-1)
 
         button_end_position = block_text.find("|^", button_position+1) + 8 + len(button_data)
         
         # Check if cursor is on button
         if cursor_position_in_block < button_position or cursor_position_in_block > button_end_position:
             return []
-
-        # Move cursor to end of block
-        # cursor.setPosition(int(button_end_string))
         
         # Delete button if button_type is 'code' and print 'Copy code' button
         if button_signature == "|^C|":
@@ -135,23 +135,40 @@ class TxtBoxPrinter(QThread):
         cursor_position = self.print_text("", f"@font_name=Source Code Pro, @color=white, @bc=black, @size={str(font_size)}")
         # Transform text into lines
         code_body = code_text.split("\n")
-        # Get max lenght
+        # Get max lenght and replace starting tabs with 4 space char
         max_len = len(code_title)
-        for code_line in code_body:
+        for idx, code_line in enumerate(code_body):
+            count = 0
+            do_while = True
+            while do_while:
+                if len(code_line) > count:
+                    if code_line[count:count+1] == "\t":
+                        count += 1
+                    else:
+                        do_while = False
+                else:
+                    do_while = False
+            if count:
+                code_line = " "*count*4 + code_line[count:]
+                code_body[idx] = code_line
+
             if len(code_line) > max_len:
                 max_len = len(code_line)
+
         max_len = max_len + 2  # adding 2 for blank space left and right
-        font = QtGui.QFont("Source Code Pro", font_size)
-        fm = QtGui.QFontMetrics(font)
-        char_width = fm.widthChar("H")
-        char_num = int(self.box.contentsRect().width() / char_width) - 6
-        if max_len > char_num:
-            max_len = char_num
+
+        # font = QtGui.QFont("Source Code Pro", font_size)
+        # fm = QtGui.QFontMetrics(font)
+        # char_width = fm.widthChar("H")
+        # char_num = int(self.box.contentsRect().width() / char_width) - 6
+        # if max_len > char_num:
+        #     max_len = char_num
+
         # Print Title
         code_title = " " + code_title + " "*(max_len-len(code_title)+1)
-        self.print_text(code_title, "color=black, bc=dark grey")
+        self.print_text(code_title, "color=black, bc=dark grey, wrap=false")
         # Print Code
-        self.code_prettify(code_body, max_len)
+        self.code_prettify(code_body, max_len, flags_string="wrap=false")
         
         # for code_line in code_body:
         #     code_line_text = " " + code_line + " "*(max_len-len(code_line)+1)
@@ -175,22 +192,26 @@ class TxtBoxPrinter(QThread):
             flags_string = "do_nothing"
         self.code_dict = self._init_code_dict()
 
-        multiline = 0
-        quota1 = False
-        quota2 = False
         quota_mode = 0
         big_quota_mode = False
+        bracket_n = 0
         for code_line in code_body:
             if self.abort_print:
                 break
             code_line = code_line.rstrip()
             code_line = " " + code_line + " "*(max_len-len(code_line)+1)
-            tmp = code_line.find('"""')
+
+            line_text = code_line.strip()
+            tmp = line_text.find('"""')
             if tmp >= 0:
-                big_quota_mode = not big_quota_mode
-                if code_line[tmp+2:].find('"""') >= 0:
+                if line_text[:3] == '"""' or line_text[-3:] == '"""':
                     big_quota_mode = not big_quota_mode
-            
+                    if line_text[tmp+2:].find('"""') >= 0:
+                        big_quota_mode = not big_quota_mode
+            if big_quota_mode:
+                quota_mode = 1
+            else:
+                quota_mode = 0
             if quota_mode == 0:
                 self._check_import(code_line)
             word = ""
@@ -203,11 +224,17 @@ class TxtBoxPrinter(QThread):
             for char in code_line:
                 count += 1
 
+                if big_quota_mode:
+                    quota_mode = 1
+
                 if comment_mode:
                     color = self.code_dict["comm_c"]
                     self.print_text(code_line[count-1:], f"{flags_string}, n=false, color={color}")
                     break
                 elif quota_mode:
+                    if word == "" and code_line[count-1:].strip() == "":
+                        self.print_text(code_line[count-1:], f"{flags_string}, n=false")
+                        break
                     if char not in self.code_dict["quota"]:
                         color = self.code_dict["quota_c"]
                         self.print_text(char, f"{flags_string}, color={color}, n=false")
@@ -234,12 +261,20 @@ class TxtBoxPrinter(QThread):
                     continue
                 
                 if char in self.code_dict["delim"]:
+                    if char == "(":
+                        bracket_n += 1
+                    elif char == ")":
+                        bracket_n -= 1
+                    
                     if object_method:
                         if char != ".":
                             object_method = False
                             if word:
                                 self._write_word(word, flags_string, print_color=self.code_dict["obj_method_c"])
                                 word = ""
+                        else:
+                            self._write_word(word, flags_string, print_color=self.code_dict["obj_method_c"])
+                            word = ""
                     else:            
                         if word in self.code_dict["obj"]:
                             object_method = True
@@ -254,7 +289,7 @@ class TxtBoxPrinter(QThread):
                     if word == "" and code_line[count-1:].strip() == "":
                         self.print_text(code_line[count-1:], f"{flags_string}, n=false")
                         break
-                    color = self._delim_color(char)
+                    color = self._delim_color(char, bracket_n=bracket_n)
                     self.print_text(char, f"{flags_string}, n=false, color={color}")
                     continue
 
@@ -271,26 +306,37 @@ class TxtBoxPrinter(QThread):
                 big_quota_mode = False
                 quota_mode = False
 
-    def _delim_color(self, delim_char):
+    def _delim_color(self, delim_char, bracket_n: int = 0):
         color = self.code_dict["delim_c"]
         if delim_char in ["(", ")"]:
-            color = "#ffff00"
+            if delim_char == "(":
+                bracket_n -= 1
+            if bracket_n%3 == 0:
+                color = "#b5b500"
+            elif bracket_n%3 == 1:
+                color = "#00cbcb"
+            elif bracket_n%3 == 2:
+                color = "#b60089"
         elif delim_char in ["[", "]"]:
             color = "#00fafa"
         elif delim_char in ["{", "}"]:
             color = "#aaff00"
         elif delim_char in ["+", "-", "<", ">", "*"]:
-            color = "#c1c191"
+            color = "#8dc184"
         elif delim_char in ["'", '"']:
             color = "#ff5500"
         elif delim_char in [","]:
             color = "yellow"
+        elif delim_char in [".", "=", "!"]:
+            color = "#b9c170"
         return color        
 
     def _write_word(self, word: str, flags_string: str, print_color: str = "white"):
         color = print_color
         bold = "False"
-        if word in self.code_dict["strong"]:
+        if word in self.code_dict["user_var"]:
+            color = self.code_dict["user_var_c"]
+        elif word in self.code_dict["strong"]:
             color = self.code_dict["strong_c"]
             bold = "True"
         elif word in self.code_dict["keyword"]:
@@ -298,7 +344,10 @@ class TxtBoxPrinter(QThread):
         elif word in self.code_dict["func"]:
             color = self.code_dict["func_c"]
         elif word in self.code_dict["obj"]:
-            color = self.code_dict["obj_c"]
+            if word == "super":
+                color = "#ff0000"
+            else:
+                color = self.code_dict["obj_c"]
             bold = "True"
         elif word in self.code_dict["number"]:
             color = self.code_dict["number_c"]
@@ -311,12 +360,16 @@ class TxtBoxPrinter(QThread):
     def _check_import(self, code_line: str):
         code_line = code_line.strip()
 
-        if len(code_line) > 5:
-            if code_line[0:3] == "def" and code_line.find("(") > 0:
+        tmp = [x.strip() for x in code_line.split("=") if x != ""]
+        if len(tmp) > 1:
+            self.code_dict["user_var"].append(tmp[0])
+
+        if len(code_line) > 6:
+            if code_line[0:4] == "def " and code_line.find("(") > 0:
                 add_obj = code_line[3:code_line.find("(")].strip()
                 self.code_dict["user_func"].append(add_obj)
                 return
-            elif code_line[0:5] == "class" and code_line.find("(") > 0:
+            elif code_line[0:6] == "class " and code_line.find("(") > 0:
                 add_obj = code_line[5:code_line.find("(")].strip()
                 self.code_dict["user_func"].append(add_obj)
                 return
@@ -342,18 +395,18 @@ class TxtBoxPrinter(QThread):
                         self.code_dict["obj"].append(i)
             tmp = [x.strip() for x in tmp2.split("as ") if x != ""]
             if len(tmp) == 1:
-                self.code_dict["obj"].append(tmp[0])
                 tmp2 = [x.strip() for x in tmp[0].split(",") if x != ""]
                 for i in tmp2:
-                    self.code_dict["obj"].append(i)
+                    tmp3 = [x.strip() for x in i.split(".") if x != ""]
+                    for j in tmp3:
+                        self.code_dict["obj"].append(j)
+            elif len(tmp) > 1:
                 tmp2 = [x.strip() for x in tmp[0].split(".") if x != ""]
                 for i in tmp2:
                     self.code_dict["obj"].append(i)
-            elif len(tmp) > 1:
-                self.code_dict["obj"].append(tmp[0])
-                tmp3 = [x.strip() for x in tmp[1].split(" ") if x != ""]
-                if tmp3:
-                    self.code_dict["obj"].append(tmp3[0])
+                tmp3 = [x.strip() for x in tmp[1].split(",") if x != ""]
+                for i in tmp3:
+                    self.code_dict["obj"].append(i)
 
     def _init_code_dict(self) -> dict:
         """Creates a dictionary that defines keywords, operators, objects, parameters...
@@ -368,9 +421,10 @@ class TxtBoxPrinter(QThread):
             "obj_c":     "#1a8b7e",
             "comm_c":    "#97ff87",
             "quota_c":   "#aa5500",
-            "number_c":  "#d50000",
+            "number_c":  "#aa0000",
             "obj_method_c": "#f1ff8f",
             "user_func_c":  "#b6b600",
+            "user_var_c":   "#aaffff",
 
             "strong": [ "class",
                         "def",
@@ -432,8 +486,9 @@ class TxtBoxPrinter(QThread):
         functions = [x.strip() for x in tmp]
         code_dict["func"] = functions[:-1]
 
-        code_dict["obj"] = ["self"]
+        code_dict["obj"] = ["self", "cls", "super"]
         code_dict["user_func"] = []
+        code_dict["user_var"] = []
 
         return code_dict
 
@@ -465,8 +520,8 @@ class TxtBoxPrinter(QThread):
             "cls": ["cls", "clear"],
             "color": ["color", "fc", "c", "foreground", "foreground_color", "fore_color", "fore", "fg"],
             "@color": ["@color", "@fc", "@c", "@foreground", "@foreground_color", "@fore_color", "@fore", "@fg"],
-            "background": ["background", "background_color", "back_color", "bc", "background color", "back"],
-            "@background": ["@background", "@background_color", "@back_color", "@bc", "@background color", "@back"],
+            "background": ["background", "background_color", "back_color", "bc", "background color", "back", "bg"],
+            "@background": ["@background", "@background_color", "@back_color", "@bc", "@background color", "@back", "@bg"],
             "font_size": ["font_size", "size", "fs", "font size"],
             "@font_size": ["@font_size", "@size", "@fs", "@font size"],
             "font_name": ["font_name", "fn", "font name", "font"],
@@ -630,6 +685,18 @@ class TxtBoxPrinter(QThread):
                     char_format.setFontUnderline(False)
                     self.global_font.setUnderline(False)
                     self.global_text_char_format.setFontUnderline(False)
+            elif commands[i][0] in comm_syn["wrap_mode"]:
+                val = commands[i][1]
+                if val in val_syn["True"]:
+                    block = cursor.block()
+                    block_format = block.blockFormat()
+                    block_format.setNonBreakableLines(False)
+                    cursor.setBlockFormat(block_format)
+                elif val in val_syn["False"]:
+                    block = cursor.block()
+                    block_format = block.blockFormat()
+                    block_format.setNonBreakableLines(True)
+                    cursor.setBlockFormat(block_format)
             elif commands[i][0] in comm_syn["new_line"]:
                 if commands[i][1] in val_syn["True"]:
                     no_new_line = False

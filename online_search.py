@@ -13,11 +13,9 @@ class OnlineSearch():
         
         self._full_object_name = full_object_name
         
-        # self._code_urls = list of URLs from search engine that contains code examples
-        # Item in list = [title(str), description(str)]
-        self._code_urls = []
+        self._code_urls = []  # List of URLs from duckduckgo for code examples
         
-        self._doc_urls = []  # List of URLs from google for documentation
+        self._doc_urls = []  # List of URLs from duckduckgo for documentation
 
         self._error_message = ""  # Message that method 'get_error_message' returns
     
@@ -49,47 +47,6 @@ class OnlineSearch():
             return result
         else:
             return ""
-
-    def _google_search_for_code(self, site_url: str = ""):
-        """Performs a google search for code examples for the requested object.
-        If the site_url parameter is passed, the search is performed only on that site.
-        Args:
-            site_url (str): Searches on this site only
-        Return:
-            None: Creates self._code_urls list
-        """
-        self._code_urls = []
-        search_string = self._make_code_search_url()
-        if site_url:
-            if site_url.find("site:") >= 0:
-                search_string = f"{site_url} {search_string}"
-            else:
-                search_string = f"site:{site_url} {search_string}"
-        urls = googlesearch.search(search_string, 1)
-        for url in urls:
-            self._code_urls.append(url)
-        if not self._code_urls:
-            self._error_message = "Google did not find any results for the requested search."
-
-    def _bing_search_for_code(self, site_url: str = ""):
-        """Performs a www.bing.com search for code examples for the requested object.
-        If the site_url parameter is passed, the search is performed only on that site.
-        Args:
-            site_url (str): Searches on this site only
-        Return:
-            None: Creates self._code_urls list
-        """
-
-        # Following code is valid if i have web page source in html var
-        # urls = self._bing_find_urls(html)
-        # descs = self._bing_find_descriptions(html)
-        # for idx, data in enumerate(urls):
-        #     self._code_urls.append(data, descs[idx])
-        #     print (data, "\n", descs[idx])
-        #
-        # if not self._code_urls:
-        #     self._error_message = "Bing did not find any results for the requested search."
-        pass
 
     def _duck_search_for_code(self, site_url: str = ""):
         """Performs a duckduckgo.com search for code examples for the requested object.
@@ -130,60 +87,6 @@ class OnlineSearch():
         if not self._code_urls:
             self._error_message = "Duck did not find any results for the requested search."
 
-    def _bing_find_urls(self, html: str) -> list:
-        """Searches for urls in html
-        Return
-            list: Url strings
-        """
-        urls = []
-        url_pos = 0
-        url_search = '<ol id="b_results" class=""><li class="b_algo"><h2><a href="'
-        url_string = ""
-        
-        while url_pos >= 0:
-            url_pos = html.find(url_search, url_pos)
-            if url_pos >=0:
-                first_quota = html.find('"', url_pos)
-                second_quota = html.find('"', first_quota + 1)
-                url_string = html[first_quota:second_quota]
-                urls.append(url_string)
-                url_pos +=1
-
-        return urls
-
-    def _bing_find_descriptions(self, html: str) -> list:
-        """Searches for descriptions in html
-        Return
-            list: Descriptions strings
-        """
-        descs = []
-        desc_pos = 0
-        desc_search = "</span>&nbsp;&#0183;&#32;"
-        desc_end_search = "</p></div>"
-        desc_string = ""
-        
-        while desc_pos >= 0:
-            desc_pos = html.find(desc_search, desc_pos)
-            if desc_pos >=0:
-                d_end = html.find(desc_end_search, desc_pos)
-                tmp = html[desc_pos:d_end].split(";&")
-                tmp2 = tmp[-1]
-                desc_string = tmp2[tmp2.find(";") + 1:]
-                descs.append(desc_string)
-                desc_pos +=1
-
-        return descs
-
-    def _make_code_search_url(self) -> str:
-        """Creates a search string that will be forwarded to google.com and used to find
-        sample code for the requested object.
-        Returns:
-            (str): Search string
-        """
-        full_object_name = self._full_object_name.replace(".", " ")
-        result = f"Python code example {full_object_name}"
-        return result
-
     def get_search_results_for_code_examples_geeks_for_geeks(self, full_object_name: str = ""):
         """It searches the site 'www.geeksforgeks.org' trying to find code examples
          for the requested object.
@@ -203,6 +106,117 @@ class OnlineSearch():
                 return
         return self._code_urls
 
+    def get_search_results_for_docs(self, full_object_name: str = ""):
+        """It searches online trying to find documentation for the requested object.
+         Search engine: www.duckduckgo.com
+         Returns:
+            list: list of urls [url (str), description (str)]
+         """
+
+        if self._full_object_name != full_object_name and full_object_name != "":
+            self.set_full_object_name(full_object_name)
+        
+        # Search with Duck
+        if not self._doc_urls:
+            self._duck_search_for_doc()
+            if not self._doc_urls:
+                return
+        
+        self._sort_doc_urls_by_relevance()
+        
+        return self._doc_urls
+
+    def _sort_doc_urls_by_relevance(self):
+        full_name_list = [x.strip() for x in self._full_object_name.split(".") if x !=""]
+        if not full_name_list:
+            return
+        relevant = full_name_list[0]
+        new_doc = []
+        # Find result on https://pypi.org/
+        for idx, item in enumerate(self._doc_urls):
+            url = item[0].lower()
+            if url.find(relevant) >= 0 and url.find("pypi.org") >= 0:
+                new_doc.append(item)
+                self._doc_urls.pop(idx)
+                break
+        # Find result on https://docs.python.org/
+        for idx, item in enumerate(self._doc_urls):
+            url = item[0].lower()
+            if url.find(relevant) >= 0 and url.find("python.org") >= 0:
+                new_doc.append(item)
+                self._doc_urls.pop(idx)
+                break
+        # Find result on other site
+        for idx, item in enumerate(self._doc_urls):
+            url = item[0].lower()
+            if url.find(relevant) >= 0 and url.find("python") < 0 and url.find("pypi") < 0:
+                new_doc.append(item)
+                self._doc_urls.pop(idx)
+                break
+        # Show first result on https://pypi.org/
+        for idx, item in enumerate(self._doc_urls):
+            url = item[0].lower()
+            if url.find("pypi.org") >= 0:
+                new_doc.append(item)
+                self._doc_urls.pop(idx)
+                break
+        # Show first result on https://docs.python.org/
+        for idx, item in enumerate(self._doc_urls):
+            url = item[0].lower()
+            if url.find("python.org") >= 0:
+                new_doc.append(item)
+                self._doc_urls.pop(idx)
+                break
+        # Show links that contains <relevant> in url
+        for idx, item in enumerate(self._doc_urls):
+            url = item[0].lower()
+            if url.find(relevant) >= 0:
+                new_doc.append(item)
+                self._doc_urls.pop(idx)
+        # Add other results
+        for i in self._doc_urls:
+            new_doc.append(i)
+        
+        self._doc_urls = []
+        self._doc_urls = new_doc
+
+    def _duck_search_for_doc(self):
+        """Performs a duckduckgo.com search for documentation for the requested object.
+        If the site_url parameter is passed, the search is performed only on that site.
+        Return:
+            None: Creates self._doc_urls list
+        """
+
+        self._doc_urls = []
+        # Define Duck url
+        url = f"https://lite.duckduckgo.com/lite/search?q=python+{self._full_object_name.replace('.', '+')}+documentation+pypi.org+docs.python.org"
+        # Get Duck search page source code
+        result_page = urllib.request.urlopen(url)
+        html = result_page.read().decode("utf-8")
+        # Parse html with BeautifulSoup
+        soup = bs(html, "lxml")
+        urls = []
+        # Find all urls and add them to list
+        results = soup.find_all("span", class_="link-text")
+        for result in results:
+            result_text = result.text.strip()
+            if result_text[:4].lower() != "http":
+                result_text = "https://" + result_text
+            urls.append(result_text)
+        descriptions = []
+        # Find all descriptions and add them to list
+        results = soup.find_all("td", class_="result-snippet")
+        for result in results:
+            descriptions.append(result.text.strip())
+        # Create self.doc_urls list
+        for idx, item in enumerate(urls):
+            if idx < len(descriptions):
+                self._doc_urls.append([item, descriptions[idx]])
+            else:
+                self._doc_urls.append([item, ""])
+        if not self._doc_urls:
+            self._error_message = "Duck did not find any results for the requested search."
+
     def get_code_examples_geeks_for_geeks(self, url: str) -> list:
         """Returns sample code from the requested url.
         Use the url provided by the search engine.
@@ -210,7 +224,11 @@ class OnlineSearch():
             list: [code_title, code_text]
         """        
         # Get url content
-        html_text = requests.get(url).content
+        try:
+            html_text = requests.get(url).content
+        except Exception as e:
+            print ("Error: ", str(e))
+            return [[]]
         # Parse html
         soup = bs(html_text, "lxml")
         # Create containers - each container contains one code example
@@ -227,21 +245,6 @@ class OnlineSearch():
             code_examples.append([f"Code Example ({str(count)})", code_text])
             count += 1
         return code_examples
-
-    def stackoverflow(self):
-        SITE = StackAPI("stackoverflow")
-        SITE.page_size = 50
-        SITE.max_pages = 1
-        answers = SITE.fetch("answers", q = "LineEdit PyQt5")
-
-        with open("stack.txt", "w", encoding="utf-8") as file:
-            for answer in answers["items"]:
-                try:
-                    json.dump(answer, file)
-                except:
-                    print ("ERROR IN SAVING FILE")
-                print (answer)
-                print (answer["body"])
 
     def run(self):
         # Primer koristenja

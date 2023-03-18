@@ -207,7 +207,7 @@ class Ui_MainWindow(object):
         self.btn_nav_end.setFlat(True)
         self.btn_nav_end.setObjectName("btn_nav_end")
         self.btn_abort = QtWidgets.QPushButton(self.centralwidget)
-        self.btn_abort.setGeometry(QtCore.QRect(420, 120, 291, 81))
+        self.btn_abort.setGeometry(QtCore.QRect(400, 50, 481, 81))
         font = QtGui.QFont()
         font.setPointSize(28)
         font.setBold(True)

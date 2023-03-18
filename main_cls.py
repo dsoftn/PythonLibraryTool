@@ -61,7 +61,8 @@ class Analyzer(QtWidgets.QMainWindow):
         self.ui.tree_lib.itemExpanded.connect(self.tree_lib_item_expanded)
         self.ui.tree_lib.customContextMenuRequested.connect(self.tree_custom_menu_request)
         self.ui.txt_info.selectionChanged.connect(self.txt_info_selection_changed)
-        
+        self.ui.cmb_code_font_size.currentIndexChanged.connect(self.cmb_code_font_change_event)
+
         self.ui.btn_nav_left.clicked.connect(self.btn_nav_left_click)
         self.ui.btn_nav_right.clicked.connect(self.btn_nav_right_click)
         self.ui.btn_nav_end.clicked.connect(self.btn_nav_end_click)
@@ -75,6 +76,8 @@ class Analyzer(QtWidgets.QMainWindow):
         # Show window
         self.show()
 
+    def cmb_code_font_change_event(self):
+        self.ui.txt_info.setFocus()
 
     def btn_abort_click(self):
         self.ui.btn_abort.setText("Wait...")
@@ -113,9 +116,12 @@ class Analyzer(QtWidgets.QMainWindow):
             container_no (str): Container number that contains code
         """
         containers = self.online.get_code_examples_geeks_for_geeks(url)
-        container = containers[int(container_no)]
-        QtWidgets.QApplication.clipboard().setText(container[1])
-        QtWidgets.QMessageBox.information(self, "Copy", "The code has been successfully copied to the clipboard !", QtWidgets.QMessageBox.Ok)
+        try:
+            container = containers[int(container_no)]
+            QtWidgets.QApplication.clipboard().setText(container[1])
+            QtWidgets.QMessageBox.information(self, "Copy", "The code has been successfully copied to the clipboard !", QtWidgets.QMessageBox.Ok)
+        except Exception as e:
+            QtWidgets.QMessageBox.information(self, "Copy", f"An error occurred, the operation cannot be performed!\n{str(e)}", QtWidgets.QMessageBox.Ok)
     
     def show_code(self, url: str):
         """Prints code example if Info Box.
@@ -180,28 +186,33 @@ class Analyzer(QtWidgets.QMainWindow):
         self.add_info_box_page()
 
     def btn_net_doc_click(self):
-        """TEST"""
-        box = qtextedit_simple.TxtBoxPrinter(self.ui.txt_info)
-        box.print_text(formating_flags="cls")
-        box.print_text("Proba da vidimo kako radi sa default podesavanjima")
-        box.print_text("Ovo je velicina 24, boja crvena, sve GLOBAL", "@size=24, @color=red")
-        box.print_text("Boja je plava za ovu liniju", "color=blue")
-        box.print_text("Boja je zelena i velicina 14 za ovu liniju", "color=green, size=14")
-        box.print_text("")
-        box.print_text("https://www.google.com/search?q=color+value+rgb&oq=&aqs=chrome.1.0i67j69i59j69i57j69i59j0i67j69i60l3.2227j0j7&sourceid=chrome&ie=UTF-8", "bc=lightgrey, fc=grey, size=1, n=false")
-        box.print_text(" Button ", "bc=black, fc=light blue, bold=1, size=12")
-        
-        box.print_text("")
+        if not self.ui.tree_lib.currentItem():
+            return
+        full_obj_name = self.conn.get_full_name(self.ui.tree_lib.currentItem().data(0, QtCore.Qt.UserRole), add_virtual_name=True)
+        code = self.online
+        code.set_full_object_name(full_obj_name)
 
-        box.print_text("Boja je zelena i velicina 14 za ovu liniju", "color=green, size=14")
-        online_examples = online_search.OnlineSearch("bla.bla")
-        online_examples.stackoverflow()
+        urls = code.get_search_results_for_docs()
 
-        if box.flags_has_errors():
-            box.print_text("Errors:", "size=20, color=black")
-        result = box.get_flag_error_list()
-        for i in box.get_flag_error_list():
-            box.print_text(f"Flag: {i[0]}   Error: {i[1]}", "size=16, color=Darkred")
+        box = self.box
+        box.print_text("", "@color=blue, @bc=light grey, @size=12, cls")
+        box.print_text(full_obj_name, "size=28, color=dark red, font_name=Source Code Pro Black")
+        box.print_text("", "size=20")
+        count = 1
+        for url in urls:
+            box.print_text(f"Search result ({count}):  ", "bc=light grey, size=14, bold=true, color=dark green, font_name=fixed, n=false")
+            box.print_button("link", "Open link in browser", url[0].strip(), foreground_color="white")
+            box.print_text("")
+            box.print_text(url[0])
+            box.print_text(url[1], "fc=black, bc=light grey, size=9")
+            # box.print_button("code", "Show example code", url[0].strip(), font_size=20)
+            box.print_text("", "size=12")
+            box.print_text("", "size=12")
+            box.print_text("", "size=12")
+            count += 1
+
+        box.print_text("", "move=start")
+        self.add_info_box_page()
 
     def add_info_box_page(self, page: str = ""):
         """Adds an Info box page.
@@ -849,13 +860,23 @@ class Analyzer(QtWidgets.QMainWindow):
         elif a0.key() == QtCore.Qt.Key_O and a0.modifiers() == QtCore.Qt.ControlModifier:
             file_name, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Chose Python File: ", os.getcwd())
             if file_name:
-                with open(file_name, "r", encoding="utf-8") as open_file:
-                    result = open_file.readlines()
+                try:
+                    with open(file_name, "r", encoding="utf-8") as open_file:
+                        result = open_file.readlines()
+                    self.box.print_text("", "cls")
+                except Exception as e:
+                    result = []
+                    self.box.print_text("Error. Cannot open this type of file.", "cls, color=red, size=18, bg=light grey, bold=1")
+                    self.box.print_text(str(e), "color=black, size=12, bg=light grey")
                 python_code = ""
                 for i in result:
                     python_code = python_code + i
-                self.box.print_text("", "cls")
                 self.box.print_code(python_code, file_name, font_size=self.ui.cmb_code_font_size.currentData())
+        elif a0.key() == QtCore.Qt.Key_V and a0.modifiers() == QtCore.Qt.ControlModifier:
+            python_code =  QtWidgets.QApplication.clipboard().text()
+            self.box.print_text("", "cls")
+            self.box.print_code(python_code, "Clipboard text:", font_size=self.ui.cmb_code_font_size.currentData())
+
         return super().keyPressEvent(a0)
 
     def update_progress(self, event_data_list: list, t1: str = "", t2: str = ""):
@@ -1151,12 +1172,9 @@ class Analyzer(QtWidgets.QMainWindow):
         # Hide Abort button
         self.ui.btn_abort.setVisible(False)
         # Fill combo - Code Font sizes
-        self.ui.cmb_code_font_size.addItem("6", 6)
-        self.ui.cmb_code_font_size.addItem("8", 8)
-        self.ui.cmb_code_font_size.addItem("10", 10)
-        self.ui.cmb_code_font_size.addItem("12", 12)
-        self.ui.cmb_code_font_size.addItem("14", 14)
-        self.ui.cmb_code_font_size.setCurrentIndex(2)
+        for i in range(4, 21):
+            self.ui.cmb_code_font_size.addItem(str(i), i)
+        self.ui.cmb_code_font_size.setCurrentIndex(6)
         # Get last search text
         result = self.conn.get_setting_data("last_search", get_text=True)
         if type(result) == str:
@@ -1225,8 +1243,9 @@ class Analyzer(QtWidgets.QMainWindow):
                     char_formater.setForeground(color)
                 elif txt[0:3] == "## ":
                     txt = txt[3:]
-                    color.setNamedColor("#0000ff")
+                    color.setNamedColor("#48006c")
                     font.setPointSize(20)
+                    font.setBold(True)
                     char_formater.setFont(font)
                     char_formater.setForeground(color)
                 elif txt[0:3] == " # ":
@@ -1269,14 +1288,15 @@ class Analyzer(QtWidgets.QMainWindow):
         lst_txt = lst_txt[:-1]
         self.conn.set_setting_data("last_search", value_text=lst_txt)
         # Save window pos and size
-        x = self.pos().x()
-        y = self.pos().y()
-        w = self.width()
-        h = self.height()
-        self.conn.set_setting_data("main_win_x", x, "Main Window Geometry")
-        self.conn.set_setting_data("main_win_y", y, "Main Window Geometry")
-        self.conn.set_setting_data("main_win_w", w, "Main Window Geometry")
-        self.conn.set_setting_data("main_win_h", h, "Main Window Geometry")
+        if not self.isMaximized():
+            x = self.pos().x()
+            y = self.pos().y()
+            w = self.width()
+            h = self.height()
+            self.conn.set_setting_data("main_win_x", x, "Main Window Geometry")
+            self.conn.set_setting_data("main_win_y", y, "Main Window Geometry")
+            self.conn.set_setting_data("main_win_w", w, "Main Window Geometry")
+            self.conn.set_setting_data("main_win_h", h, "Main Window Geometry")
         # Save delimiter line position
         self.conn.set_setting_data("main_win_delimiter_line", self.ui.ln_sep.pos().x(), "Delimiter line position")
         # Save Info box pages

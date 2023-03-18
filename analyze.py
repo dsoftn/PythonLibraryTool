@@ -119,5 +119,5 @@ class IspitajObjekat():
 
 class do_it():
     def __init__(self):
-        import selenium
-        i = IspitajObjekat(selenium)
+        import googlesearch
+        i = IspitajObjekat(googlesearch)

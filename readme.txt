@@ -1,6 +1,14 @@
-### Python Library Analizer
+### Python Library Analyzer
 
-Welcome to our Python library information tool! With this program, you can enter the name of any Python library and view information on its classes, methods, functions, constants, and more. The information will be displayed in a tree view, making it easy for you to navigate and access the different components of the library. Simply enter the name of the library you're interested in and explore all the valuable resources it has to offer.
+#  Unlock the power of Python libraries with Library Analyzer - your ultimate guide to efficient coding.
+
+## Welcome to our Python library information tool!
+
+The goal of this application is to help beginners as well as more experienced Python users navigate the vast number of available Python libraries. The "Library Analyzer" provides valuable information about all the methods contained within a specific library.
+
+If you want to dive deeper into a library, the application can search for online documentation on your behalf. Alternatively, if you just need some basic functionality and a picture is worth a thousand words, with just a few clicks, you can access Python code examples that use the library or a specific method.
+
+We hope that this application will be useful to you and help you improve your knowledge of Python and its libraries.
 
 ## How to begin:
 
@@ -28,20 +36,34 @@ The data is now recorded in the database and can be accessed quickly.
 
 ## Search:
 
- # Type expresion you want to search for in search box and hit Return.
-Please note that our database only includes information on the direct subobjects of the Python library you selected, as well as any additional data that has been loaded as you navigate through the tree view. Therefore, any components that you haven't analyzed won't be included in the database. Additionally, you can select "Analyze all sub objects" in tree view context menu and and ensure that all data is available for search.
+ # To search for a specific object, simply type the object name in the search box and hit "Return"
+It's important to note that our database only includes information on the direct sub-objects of the selected Python library, as well as any additional data that has been loaded as you navigate through the tree view. This means that if you haven't analyzed a particular component, it won't be included in the database. To ensure that all data is available for search, you can select "Analyze all sub-objects" in the tree view context menu.
 
- # By clicking on the search result, a button for finding the position of the object appears.
-The search results are displayed in the Info Box, click on one of the results to see it in the tree view
+
+ # The search results are displayed in the Info Box, click on one of the results to see it in the tree view
+When you click on a search result, a 'Find' button will appear, which will take you directly to that object in the Tree View.
 
 ## Tree view context menu:
 
  # Delete object and all sub objects
 Deletes the selected object and all its sub-objects.
+
  # Analyze all sub objects !
-This option will analyze the selected object and all its sub-objects in depth. This is useful when you want to process and save all the information from the objects of a library to the database, that way every search of the database will give complete information. This is a one-time process and can be time-consuming for large libraries.
+This option will analyze the selected object and all its sub-objects in depth. This is useful when you want to process and save all the information from the objects and a library to the database, that way every search of the database will give complete information. This is a one-time process and can be time-consuming for large libraries.
+
  # Search in this object
 Searches only within the selected object and all its sub-objects. This is useful when you have a large number of analyzed libraries, so the search results of all libraries can sometimes be overwhelming.
+
+## OnLine search:
+Finds documentation and code examples for the selected object.
+Depending on how much documentation and code examples are available online for the currently selected object, the search results can vary quite a bit in their accuracy.
+
+ # Documentation:
+Tries to find online documentation for the currently selected object.
+
+ # Code Example:
+Tries to find examples of Python code that use the currently selected object.
+
 
 ## Note:
 Press CTRL+Return to view this document.
