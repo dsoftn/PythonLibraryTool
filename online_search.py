@@ -1,6 +1,8 @@
 from bs4 import BeautifulSoup as bs
 import requests
 import urllib.request
+import lxml.html
+import html
 
 
 class OnlineSearch():
@@ -58,7 +60,10 @@ class OnlineSearch():
 
         self._code_urls = []
         # Define Duck url
-        url = f"https://lite.duckduckgo.com/lite/search?q=site%3A+{site_url}+Python+code+example+{self._full_object_name.replace('.', '+')}"
+        if site_url:
+            url = f"https://lite.duckduckgo.com/lite/search?q=site%3A+{site_url}+Python+code+example+{self._full_object_name.replace('.', '+')}"
+        else:
+            url = f"https://lite.duckduckgo.com/lite/search?q=Python+code+example+{self._full_object_name.replace('.', '+')}"
         # Get Duck search page source code
         result_page = urllib.request.urlopen(url)
         html = result_page.read().decode("utf-8")
@@ -97,7 +102,8 @@ class OnlineSearch():
         if self._full_object_name != full_object_name and full_object_name != "":
             self.set_full_object_name(full_object_name)
         
-        site = "www.geeksforgeeks.org"
+        # site = "www.geeksforgeeks.org"
+        site = ""
         # Search with Duck
         if not self._code_urls:
             self._duck_search_for_code(site_url=site)
@@ -245,6 +251,302 @@ class OnlineSearch():
             count += 1
         return code_examples
 
+    def get_code_examples_all(self, url: str) -> list:
+        """Returns sample code from the requested url.
+        Use the url provided by the search engine.
+        Returns:
+            list: [code_title, code_text]
+        """        
+        # Get url content
+        try:
+            html_text = requests.get(url).text
+        except Exception as e:
+            print ("Error: ", str(e))
+            return [[]]
+
+        html_text = html.unescape(html_text)
+
+        with open("test.txt", "w", encoding="utf-8") as file:
+            file.write(html_text)
+
+        html_text = self._fix_html(url, html_text)
+
+        # Parse html
+        container_delimiters = [['class="code"', ''],
+                                ['class=code>', ''],
+                                ['class="example"', ''],
+                                ['class="prettyprint">', ''],
+                                ['class="prettyprint notranslate">', ''],
+                                ['class="wp-block-syntaxhighlighter-code "', ''],
+                                ['class="wp-block-code"', ''],
+                                ['class="language-clike"', ''],
+                                ['class="language-like"', ''],
+                                ['class="answercell post-layout--right">', ''],
+                                ['class="brush: python" title="Python Code:">', ''],
+                                ['style="font-size:70%" class="language-python"', ''],
+                                ['style="font-size:', ''],
+                                ['textarea readonly=""', ''],
+                                ['class="python">', ''] ]
+
+        comment_delimiters = [  ['class=text>', ''],
+                                ['class="examples-description">', ''],
+                                ['class="entry-content" itemprop="text">', ''],
+                                ['id="index_page_top_text_box">', ''],
+                                ['class="postcell post-layout--right">', ''],
+                                ['class="post_body scaleimages"', ''],
+                                ['class="entry-content"', ''],
+                                ['class="nv-content-wrap entry-content">', ''],
+                                ['class="entry-content"', ''],                                
+                                ['<title>', ''],
+                                ['<tr>', ''] ]
+        
+        line_delimiters = [ 'class="line"',
+                            'class="line number',
+                            '<code class="hljs language-python">',
+                            '<code>',
+                            '<DsoftN>' ]
+        
+        comment_line_delimiters = [ '<p>',
+                                    '<DsoftN>' ]
+        
+        # Look for site specific delimiters:
+        container_delimiters, comment_delimiters, line_delimiters,comment_line_delimiters = self._find_delimiters(url, container_delimiters, comment_delimiters, line_delimiters, comment_line_delimiters)
+
+        # Find end string for code
+        for idx, delim in enumerate(container_delimiters):
+            if delim[1] == "":
+                if delim[0][0] == "<":
+                    container_delimiters[idx][1] = "</" + delim[0][1:]
+                else:
+                    pos = html_text.find(delim[0])
+                    if pos >= 0:
+                        start_pos = html_text[:pos+1].rfind("<")
+                        tag_string = html_text[start_pos:pos].strip()
+                        tag_string = "</" + tag_string[1:]
+                    else:
+                        tag_string = ""
+                    container_delimiters[idx][1] = tag_string
+        # Find end string for comments
+        for idx, delim in enumerate(comment_delimiters):
+            if delim[1] == "":
+                if delim[0][0] == "<":
+                    comment_delimiters[idx][1] = "</" + delim[0][1:]
+                else:
+                    pos = html_text.find(delim[0])
+                    if pos >= 0:
+                        start_pos = html_text[:pos+1].rfind("<")
+                        tag_string = html_text[start_pos:pos].strip()
+                        tag_string = "</" + tag_string[1:]
+                    else:
+                        tag_string = ""
+                    comment_delimiters[idx][1] = tag_string
+
+        comments = self._parse_html(html_text, comment_delimiters, comment_line_delimiters, comments=True)
+        code_examples =  self._parse_html(html_text, container_delimiters, line_delimiters)
+        result = []
+        if len(comments) == len(code_examples):
+            for idx, block in enumerate(code_examples):
+                if idx < len(comments):
+                    result.append(comments[idx])
+                result.append(block)
+        else:
+            for comment in comments:
+                result.append(comment)
+            for block in code_examples:
+                result.append(block)
+
+        return result
+
+    def _find_delimiters(self, url: str, container_d: list, comment_d: list, line_d: list, comment_line_d: list) -> list:
+        """If there are specific delimiters for the requested site, then it returns a list containing only those delimiters,
+        if nothing is found, it returns the original list.
+        """
+        if url.find("www.tutorialspoint.com") >= 0:
+            container_d = [['class="prettyprint notranslate">', '']]
+            comment_d = [['<tr>', '']]
+            line_d = ["<DsoftN>"]
+        elif url.find("coderslegacy.com") >= 0:
+            container_d = [['class="wp-block-syntaxhighlighter-code >"', '']]
+            comment_d = [['class="entry-content" itemprop="text">', '']]
+            line_d = ["<DsoftN>"]
+        elif url.find("www.pythontutorial.net") >= 0:
+            container_d = [['class="wp-block-code"', '']]
+            comment_d = [['<h2>Summary</h2>', '']]
+            line_d = ['<code class="hljs language-python">']
+            comment_line_d = ["<li>"]
+        elif url.find("stackoverflow.com") >= 0:
+            container_d = [['class="answercell post-layout--right">', '']]
+            line_d = ['<code>']
+            comment_d = [['class="postcell post-layout--right">', '']]
+            comment_line_d = ['<p>']
+        elif url.find("python-forum.io") >= 0:
+            container_d = [['class="brush: python" title="Python Code:">', '']]
+            line_d = ['<DsoftN>']
+            comment_d = [['class="post_body scaleimages"', '']]
+            comment_line_d = ['<DsoftN>']
+        elif url.find("www.pythonguis.com") >= 0:
+            container_d = [['class="python">', '']]
+            line_d = ['<DsoftN>']
+            comment_d = [['<title>', '']]
+            comment_line_d = ['<DsoftN>']
+        elif url.find("clay-atlas.com") >= 0:
+            container_d = [['textarea readonly=""', '']]
+            line_d = ['<DsoftN>']
+            comment_d = [['class="nv-content-wrap entry-content">', '']]
+            comment_line_d = ['<p>']
+        elif url.find("www.programcreek.com") >= 0:
+            container_d = [['class="prettyprint">', '']]
+            line_d = ['<DsoftN>']
+            comment_d = [['id="index_page_top_text_box">', '']]
+            comment_line_d = ['<DsoftN>']
+        elif url.find("hotexamples.com") >= 0:
+            container_d = [['class="example"', '']]
+            line_d = ['<DsoftN>']
+            comment_d = [['class="examples-description">', '']]
+            comment_line_d = ['<DsoftN>']
+        elif url.find("programtalk.com") >= 0:
+            container_d = [['class="language-clike"', '']]
+            line_d = ['<DsoftN>']
+            comment_d = [['class="entry-content"', '']]
+            comment_line_d = ['<DsoftN>']
+        elif url.find("codesuche.com") >= 0:
+            container_d = [ ['style="font-size:70%" class="language-python"', ''], 
+                            ['style="font-size:', '']]
+            line_d = ['<DsoftN>']
+            comment_d = [['class="entry-content"', '']]
+            comment_line_d = ['<DsoftN>']
+
+        return container_d, comment_d, line_d, comment_line_d
+    
+    def _fix_html(self, url: str, html_text: str) -> str:
+        """Fixes the HTML code depending on the site from which the data is downloaded.
+        """
+        if url.find("www.geeksforgeeks.org") >= 0:
+            pos = 0
+            while True:
+                pos = html_text.find("<code class=keyword>", pos)
+                if pos >= 0:
+                    pos2 = html_text.find("<", pos+20)
+                    if pos2 == -1:
+                        break
+                    html_text = html_text[:pos+1] + "<DsoftN>" + html_text[pos+20:pos2] + " " + html_text[pos2:]
+                else:
+                    break
+        
+        
+        # Global rules
+        html_text = html_text.replace('title">', "DsoftN> ")
+        # html_text = html_text.replace('class="title">', "DsoftN> ")
+        # html_text = html_text.replace('span class="hljs-title">', "DsoftN> ")
+
+        return html_text
+
+
+    def _parse_html(self, html: str, container_delimiters: list, line_delimiters: list, comments: bool = False) -> list:
+        """Parsing HTML code, trying to find Code Examples.
+        Args:
+            html (str): HTML code
+            container_delimiters (list): list of expresions that can be delimiters for code blocks
+            line_delimiters (list): list of expresions that can be delimiters for code lines
+            comments (bool): If true, search for comments
+        Returns:
+            list: [[code_title, code_body]]
+        """
+        code_list = []
+        
+        containers = []
+        for container_delimiter in container_delimiters:
+            containers = [x for x in html.split(container_delimiter[0]) if x != ""]
+            if container_delimiter[0][-1:] != ">":
+                containers = [("<" + x) for x in containers]
+            if len(containers) > 1:
+                for idx, container in enumerate(containers):
+                    pos = container.find(container_delimiter[1])
+                    if pos >=0:
+                        containers[idx] = container[:pos]
+                break
+        if len(containers) <= 1:
+            return []
+        containers.pop(0)        
+        
+        code_block = []
+        for idx_container, container in enumerate(containers):
+            for line_delimiter in line_delimiters:
+                code_block = [x + "<DsoftN>" for x in container.split(line_delimiter) if x != ""]
+                if len(code_block) > 1:
+                    code_block.pop(0)
+                    break
+            # if len(code_block) <= 1:
+            #     continue
+            code_body =  self._parse_code_block(code_block, line_delimiter)
+            code_title = f"Example {str(idx_container+1)}/{len(containers)}"
+            if comments:
+                code_title = "|comment|"
+            code_list.append([code_title, code_body])
+        if code_list:
+            return code_list
+        else:
+            return []
+
+    def _parse_code_block(self, code_block: list, line_delimiter: str):
+        """Parsing code block and trying to find code exapmples lines.
+        Args:
+            code_block (list): Code Block delimited with delimiter string
+            line_delimiter = Used line delimiter
+        """
+        code_lines = []
+        for line in code_block:
+            if line_delimiter[-1] == ">":
+                line = ">" + line
+            code_line = ""
+            idx = 0
+            while idx <= len(line):
+                char = line[idx:idx+1]
+
+                if char == "<":
+                    pos = line.find(">", idx)
+                    if pos >= 0:
+                        idx = pos-1
+                    else:
+                        break
+                if char == ">":
+                    pos = line.find("<", idx)
+                    if pos < 0:
+                        pos = len(line)
+                    if line[idx+1:pos].strip() != "":
+                        code_line = code_line + line[idx+1:pos]
+                    idx = pos-1
+                idx += 1
+            code_lines.append(code_line.replace("\xa0", " ") + "\n")
+        
+        code_body = "".join(code_lines)
+        code_body = self._fix_ascii(code_body)
+
+        return code_body
+
+    def _fix_ascii(self, line: str) -> str:
+        """Replaces special html characters with ASCII
+        """
+        pos=0
+        while pos >= 0:
+            pos = line.find("&#")
+            if pos >= 0:
+                end_pos = line[pos:].find(";") + pos
+                ascii_string = line[pos:end_pos]
+                ascii_val = int(ascii_string[2:])
+                lenght = len(ascii_string) + 1
+                replace_char = ""
+                if ascii_val > 31 and ascii_val < 127:
+                    replace_char = chr(ascii_val)
+                line = line[:pos] + replace_char + line[pos+lenght:]
+        line = line.replace("&nbsp;", " ")
+
+        # Fix other
+        if line.find("Code language:") > 0:
+            line = line[:line.find("Code language:")]
+
+        return line
+
     def run(self):
         # Primer koristenja
         html_text = requests.get(url).text
@@ -259,4 +561,10 @@ class OnlineSearch():
 
 if __name__ == "__main__":
     tmp = OnlineSearch("nn")
-    tmp._duck_search_for_code()
+    # Samo za testiranje OBRISI
+    # url = "https://pythonprogramminglanguage.com/pyqt-line-edit/"
+    # url = "https://www.geeksforgeeks.org/pyqt5-qlineedit/"
+    url = "https://codesuche.com/python-examples/PyQt5.QtWidgets.QLineEdit/"
+    tmp.get_code_examples_all(url)
+
+    # OBRISI sve gore

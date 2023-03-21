@@ -133,15 +133,24 @@ class Analyzer(QtWidgets.QMainWindow):
         cursor_start__pos = cursor.position()
         self.box.print_text("", "size=10")
         result = True
-        containers = self.online.get_code_examples_geeks_for_geeks(url)
+        # containers = self.online.get_code_examples_geeks_for_geeks(url)
+        containers = self.online.get_code_examples_all(url)
+        
         for idx, container in enumerate(containers):
-            self.box.print_text("")
-            self.box.print_text(f"Example code ({idx+1}/{len(containers)})     ", "size=16, color=dark green, bc=light grey, bold=true, underline=true, n=false")
-            self.box.print_button("copy", "Copy code", url, foreground_color="light blue", extra_data=str(idx), font_size=16)
-            self.box.print_text("")
-            result = self.box.print_code(container[1], container[0], font_size=self.ui.cmb_code_font_size.currentData())
-            if not result:
-                break
+            if container[0] == "|comment|":
+                self.box.print_text("", "scroll=false")
+                f_size = self.ui.cmb_code_font_size.currentData()
+                if f_size < 12:
+                    f_size = 12
+                self.box.print_text(container[1], f"bc=light grey, fc=#2b2b82, size={str(f_size)}, bold=false, font_name=Calibri, scroll=false")
+            else:
+                self.box.print_text("", "scroll=false")
+                self.box.print_text("Example code:          ", "size=12, color=dark green, bc=light grey, bold=true, underline=true, n=false, scroll=false")
+                self.box.print_button("copy", "Copy code", url, foreground_color="light blue", extra_data=str(idx), font_size=12, scroll_mode=False)
+                self.box.print_text("", "scroll=false")
+                result = self.box.print_code(container[1], container[0], font_size=self.ui.cmb_code_font_size.currentData())
+                if not result:
+                    break
 
         self.ui.btn_abort.setVisible(False)
         if not result:
@@ -149,12 +158,14 @@ class Analyzer(QtWidgets.QMainWindow):
             self.box.print_text("User aborted.", "color=red, size = 30, bold=true")
             return
 
-        cursor_end_pos = self.box.print_text("")
+        scroll = "False"
+        if scroll != "False":
+            cursor_end_pos = self.box.print_text("")
 
-        text_option = QtGui.QTextOption()
-        cursor.movePosition(QtGui.QTextCursor.PreviousCharacter, QtGui.QTextCursor.MoveAnchor, cursor_end_pos - cursor_start__pos)
-        self.ui.txt_info.setTextCursor(cursor)
-        self.ui.txt_info.ensureCursorVisible()
+            text_option = QtGui.QTextOption()
+            cursor.movePosition(QtGui.QTextCursor.PreviousCharacter, QtGui.QTextCursor.MoveAnchor, cursor_end_pos - cursor_start__pos)
+            self.ui.txt_info.setTextCursor(cursor)
+            self.ui.txt_info.ensureCursorVisible()
 
     def btn_net_code_click(self):
         if not self.ui.tree_lib.currentItem():

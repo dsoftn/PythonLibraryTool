@@ -56,7 +56,7 @@ class TxtBoxPrinter(QThread):
         """
         return self.global_text_char_format
 
-    def print_button(self, button_type: str, button_text: str, button_data: str, font_size: int = 12, foreground_color: str = "yellow", extra_data: str = ""):
+    def print_button(self, button_type: str, button_text: str, button_data: str, font_size: int = 12, foreground_color: str = "yellow", extra_data: str = "", scroll_mode=True):
         """Prints Button in the Text Box.
         Args:
             button_type (str): String that represent type of Button to print
@@ -68,7 +68,13 @@ class TxtBoxPrinter(QThread):
             font_size (int)(optional): Font size
             foreground_color (str): Text color
             extra_data (str): Some extra data, like container number
+            scrool_mode (bool): Scroll txt box with printed text
         """
+        if scroll_mode:
+            scroll = "True"
+        else:
+            scroll = "False"
+        
         if button_type.lower() == "link":
             type_string = "|^L|"
         elif button_type.lower() == "code":
@@ -77,16 +83,16 @@ class TxtBoxPrinter(QThread):
             type_string = "|^X|"
         else:
             type_string = "|^?|"
-        self.print_text(type_string, f"size={font_size}, n=false, font_name=Arial, fg=#ffff00, bc=#00007f, invisible=true")
-        self.print_text(button_text, f"size={font_size}, n=false, font_name=Arial, fg={foreground_color}, bc=#00007f")
-        self.print_text(type_string, f"size={font_size}, n=false, font_name=Arial, fg=#ffff00, bc=#00007f, invisible=true")
-        self.print_text(button_data + type_string, "size=1, font_name=Arial, fg=#ffff00, bc=#00007f, invisible=true, n=false")
-        end_position = self.print_text("", "size=1, n=false")
+        self.print_text(type_string, f"size={font_size}, n=false, font_name=Arial, fg=#ffff00, bc=#00007f, invisible=true, scroll={scroll}")
+        self.print_text(button_text, f"size={font_size}, n=false, font_name=Arial, fg={foreground_color}, bc=#00007f, scroll={scroll}")
+        self.print_text(type_string, f"size={font_size}, n=false, font_name=Arial, fg=#ffff00, bc=#00007f, invisible=true, scroll={scroll}")
+        self.print_text(button_data + type_string, f"size=1, font_name=Arial, fg=#ffff00, bc=#00007f, invisible=true, n=false, scroll={scroll}")
+        end_position = self.print_text("", f"size=1, n=false, scroll={scroll}")
         end_string = str(end_position + 11)
         end_string = "0"*(10-len(end_string)) + end_string
         if extra_data:
             end_string = extra_data
-        self.print_text(end_string, "size=1, invisible=true")
+        self.print_text(end_string, f"size=1, invisible=true, scroll={scroll}")
 
     def get_button_info(self) -> list:
         """Returns a list with information about the button for current cursor position.
@@ -131,8 +137,9 @@ class TxtBoxPrinter(QThread):
         Returns:
             bool: False if user aborted printing
         """
+        scroll = "False"  # If false txt box will not scroll with printed text
         # Set print format
-        cursor_position = self.print_text("", f"@font_name=Source Code Pro, @color=white, @bc=black, @size={str(font_size)}")
+        cursor_position = self.print_text("", f"@font_name=Source Code Pro, @color=white, @bc=black, @size={str(font_size)}, scroll={scroll}")
         # Transform text into lines
         code_body = code_text.split("\n")
         # Get max lenght and replace starting tabs with 4 space char
@@ -166,16 +173,17 @@ class TxtBoxPrinter(QThread):
 
         # Print Title
         code_title = " " + code_title + " "*(max_len-len(code_title)+1)
-        self.print_text(code_title, "color=black, bc=dark grey, wrap=false")
+        self.print_text(code_title, f"color=black, bc=dark grey, wrap=false, scroll={scroll}")
         # Print Code
-        self.code_prettify(code_body, max_len, flags_string="wrap=false")
+        self.code_prettify(code_body, max_len, flags_string=f"wrap=false, scroll={scroll}")
         
         # for code_line in code_body:
         #     code_line_text = " " + code_line + " "*(max_len-len(code_line)+1)
         #     self.code_prettify(code_line_text, "wrap_mode=false")
         #     self.print_text(code_line_text, "wrap_mode=false")
-        self.box.textCursor().setPosition(cursor_position, QtGui.QTextCursor.MoveAnchor)
-        self.box.ensureCursorVisible()
+        if scroll != "False":
+            self.box.textCursor().setPosition(cursor_position, QtGui.QTextCursor.MoveAnchor)
+            self.box.ensureCursorVisible()
         if self.abort_print:
             self.abort_print = False
             return False
@@ -354,6 +362,10 @@ class TxtBoxPrinter(QThread):
         elif word in self.code_dict["user_func"]:
             color = self.code_dict["user_func_c"]
             bold = "True"
+        elif word[0:1] == "@":
+            color = "#f71a1a"
+            bold = "True"
+
 
         self.print_text(word, f"{flags_string}, color={color}, bold={bold}, n=false")
 
@@ -511,6 +523,7 @@ class TxtBoxPrinter(QThread):
             "new_line": ["new_line", "nl", "new_l", "n", "new line"]: Default is 'True', if 'False' cursor will not go in new line
             "Move": ["move", "position", "@move", "@position"]: Move cursor in beginning or end of text (Beginning/End)
             "Invisible": ["invisible", "ghost", "silent"]: Sets font forecolor=background color
+            "scroll": ["scroll", "track"]: Scroll txt box as text is printed
         """
         # Make variables for text and flags
         txt = text_to_print
@@ -536,7 +549,8 @@ class TxtBoxPrinter(QThread):
             "@new_line": ["@new_line", "@nl", "@new_l", "@n", "@new line"],
             "Move": ["move", "position", "@move", "@position"],
             "Invisible": ["invisible", "ghost", "silent"],
-            "wrap_mode": ["wrap_mode", "wrap mode", "wrap", "word_wrap", "word wrap"]
+            "wrap_mode": ["wrap_mode", "wrap mode", "wrap", "word_wrap", "word wrap"],
+            "scroll": ["scroll", "track"]
         }
         val_syn = {
             "True": ["true", "1", "yes", "ok"],
@@ -554,6 +568,7 @@ class TxtBoxPrinter(QThread):
         # Set default values for variables
         no_new_line = self.no_new_line
         cursor = self.box.textCursor()
+        scroll = True
         # Execute flags
         for i in range(0, len(commands)):
             cl = commands[i][1].lower()
@@ -606,6 +621,10 @@ class TxtBoxPrinter(QThread):
                     val = self.global_font.pointSize()
                 char_format.setFontPointSize(val)
                 self.global_text_char_format.setFontPointSize(val)
+            elif commands[i][0] in comm_syn["scroll"]:
+                val = commands[i][1]
+                if val in val_syn["False"]:
+                    scroll = False
             elif commands[i][0] in comm_syn["font_name"]:
                 val = commands[i][1]
                 if commands[i][1] in val_syn["Fixed_Font"]:
@@ -724,7 +743,8 @@ class TxtBoxPrinter(QThread):
         if txt.rstrip() != "`None|Ignore`":
             cursor.insertText(txt, char_format)
         self.box.textCursor().setPosition(cursor.position())
-        self.box.ensureCursorVisible()
+        if scroll:
+            self.box.ensureCursorVisible()
         QCoreApplication.processEvents()
         return cursor.position()
 

@@ -119,5 +119,5 @@ class IspitajObjekat():
 
 class do_it():
     def __init__(self):
-        import requests
-        i = IspitajObjekat(requests)
+        import urllib
+        i = IspitajObjekat(urllib)
