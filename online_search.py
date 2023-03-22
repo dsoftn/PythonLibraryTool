@@ -20,6 +20,9 @@ class OnlineSearch():
 
         self._error_message = ""  # Message that method 'get_error_message' returns
     
+    def delete_code_search_results(self):
+        self._code_urls = []
+    
     def get_full_object_name(self):
         """Returns full_object_name string
         """
@@ -91,7 +94,7 @@ class OnlineSearch():
         if not self._code_urls:
             self._error_message = "Duck did not find any results for the requested search."
 
-    def get_search_results_for_code_examples_geeks_for_geeks(self, full_object_name: str = ""):
+    def get_search_results_for_code_examples(self, full_object_name: str = "", site: str = ""):
         """It searches the site 'www.geeksforgeks.org' trying to find code examples
          for the requested object.
          Search engine: www.duckduckgo.com
@@ -102,8 +105,6 @@ class OnlineSearch():
         if self._full_object_name != full_object_name and full_object_name != "":
             self.set_full_object_name(full_object_name)
         
-        # site = "www.geeksforgeeks.org"
-        site = ""
         # Search with Duck
         if not self._code_urls:
             self._duck_search_for_code(site_url=site)
@@ -256,7 +257,11 @@ class OnlineSearch():
         Use the url provided by the search engine.
         Returns:
             list: [code_title, code_text]
-        """        
+        """
+        # For GeeksForGeeks call specific function
+        # if url.find("www,geeksforgeeks.org") >= 0:
+        #     result = self.get_code_examples_geeks_for_geeks(url)
+        #     return result
         # Get url content
         try:
             html_text = requests.get(url).text
@@ -264,7 +269,8 @@ class OnlineSearch():
             print ("Error: ", str(e))
             return [[]]
 
-        html_text = html.unescape(html_text)
+        html_text = html_text.replace("\t", "    ")
+        # html_text = html.unescape(html_text)
 
         with open("test.txt", "w", encoding="utf-8") as file:
             file.write(html_text)
@@ -275,18 +281,24 @@ class OnlineSearch():
         container_delimiters = [['class="code"', ''],
                                 ['class=code>', ''],
                                 ['class="example"', ''],
+                                ['class="python-exec">', ''],
                                 ['class="prettyprint">', ''],
                                 ['class="prettyprint notranslate">', ''],
                                 ['class="wp-block-syntaxhighlighter-code "', ''],
-                                ['class="wp-block-code"', ''],
+                                ['class="wp-block-code language-python">', ''],
+                                ['class="wp-block-code">', ''],
+                                ['class="language-python">', ''],
                                 ['class="language-clike"', ''],
                                 ['class="language-like"', ''],
+                                ['class="highlight python', ''],
+                                ['class="highlight">', ''],
                                 ['class="answercell post-layout--right">', ''],
+                                ['class="brush: python; title: ; notranslate" title>', ''],
                                 ['class="brush: python" title="Python Code:">', ''],
-                                ['style="font-size:70%" class="language-python"', ''],
                                 ['style="font-size:', ''],
                                 ['textarea readonly=""', ''],
-                                ['class="python">', ''] ]
+                                ['class="python">', ''],
+                                ['<code>', ''] ]
 
         comment_delimiters = [  ['class=text>', ''],
                                 ['class="examples-description">', ''],
@@ -298,6 +310,7 @@ class OnlineSearch():
                                 ['class="nv-content-wrap entry-content">', ''],
                                 ['class="entry-content"', ''],                                
                                 ['<title>', ''],
+                                ['class=cart-heading>', ''],
                                 ['<tr>', ''] ]
         
         line_delimiters = [ 'class="line"',
@@ -365,10 +378,9 @@ class OnlineSearch():
             container_d = [['class="prettyprint notranslate">', '']]
             comment_d = [['<tr>', '']]
             line_d = ["<DsoftN>"]
-        elif url.find("coderslegacy.com") >= 0:
-            container_d = [['class="wp-block-syntaxhighlighter-code >"', '']]
-            comment_d = [['class="entry-content" itemprop="text">', '']]
-            line_d = ["<DsoftN>"]
+        elif url.find("www.geeksforgeeks.org") >= 0:
+            container_d = [['class=code>', ''], ['class="code"', '']]
+            line_d = ['class="line number', 'class="line"']
         elif url.find("www.pythontutorial.net") >= 0:
             container_d = [['class="wp-block-code"', '']]
             comment_d = [['<h2>Summary</h2>', '']]
@@ -415,6 +427,81 @@ class OnlineSearch():
             line_d = ['<DsoftN>']
             comment_d = [['class="entry-content"', '']]
             comment_line_d = ['<DsoftN>']
+        elif url.find("pdoc.qt.io") >= 0:
+            comment_d = [['class="pre">', '']]
+            comment_line_d = ['<DsoftN>']
+        elif url.find("likegeeks.com") >= 0:
+            container_d = [['class="lang:python decode:true"', '']]
+            line_d = ['<DsoftN>']
+            comment_d = [['class="entry-content">', '']]
+            comment_line_d = ['<p>']
+        elif url.find("data-flair.training") >= 0:
+            comment_d = [['id="challenge-error-title">', '']]
+            comment_line_d = ['<DsoftN>']
+        elif url.find("pypi.org") >= 0:
+            container_d = [['<code>', '']]
+            line_d = ['<DsoftN>']
+            comment_d = [['class="project-description">', '']]
+            comment_line_d = ['<p>']
+        elif url.find("www.guru99.com") >= 0:
+            comment_d = [['<body>', '']]
+            comment_line_d = ['<p>']
+        elif url.find("docs.python.org") >= 0:
+            container_d = [['class="highlight">', '']]
+            line_d = ['<span class="gp">']
+            comment_d = [['id="module', '']]
+            comment_line_d = ['<p>']
+        elif url.find("freecodecamp.org") >= 0:
+            container_d = [['class="language-python">', '']]
+            line_d = ['<DsoftN>']
+            comment_d = [['class="post-content ">', '']]
+            comment_line_d = ['<p>']
+        elif url.find("realpython.com") >= 0:
+            container_d = [ ['class="highlight python repl">', ''],
+                            ['class="highlight python">', ''] ]
+            line_d = ['<span class="gp">']
+        elif url.find("www.programiz.com") >= 0:
+            container_d = [['class="python-exec">', '']]
+            line_d = ['<DsoftN>']
+            comment_d = [['id="introduction">', '']]
+            comment_line_d = ['<DsoftN>']
+        elif url.find("www.w3schools.com") >= 0:
+            container_d = [['class="w3-code notranslate pythonHigh">', '']]
+            line_d = ['<br>']
+            comment_d = [['<h1>', '']]
+            comment_line_d = ['<DsoftN>']
+        elif url.find("www.edureka.co") >= 0:
+            container_d = [['class="brush: python; title: ; notranslate" title>', '']]
+            line_d = ['<DsoftN>']
+            comment_d = [['class=cart-heading>', '']]
+            comment_line_d = ['<DsoftN>']
+        elif url.find("pythonpyqt.com") >= 0:
+            container_d = [['<code>', '']]
+            line_d = ['<DsoftN>']
+            comment_d = [['<h1>', '']]
+            comment_line_d = ['<DsoftN>']
+        elif url.find("coderslegacy.com") >= 0:
+            container_d = [['class="wp-block-syntaxhighlighter', '']]
+            line_d = ['<DsoftN>']
+            comment_d = [['class="entry-content" itemprop="text">', '']]
+            comment_line_d = ['<p>']
+        elif url.find("www.machinelearningplus.com") >= 0:
+            container_d = [['class="lang-python">', '']]
+            line_d = ['<DsoftN>']
+        elif url.find("www.pythonforbeginners.com") >= 0:
+            container_d = [['class="language-python">', '']]
+            line_d = ['<DsoftN>']
+            comment_d = [['class="entry-content">', '']]
+            comment_line_d = ['<p>']
+        elif url.find("sparkbyexamples.com") >= 0:
+            container_d = [['class="language-python">', '']]
+            line_d = ['<DsoftN>']
+        elif url.find("datagy.io") >= 0:
+            container_d = [['class="wp-block-code language-python">', '']]
+            line_d = ['<DsoftN>']
+        elif url.find("www.knowprogram.com") >= 0:
+            container_d = [['class="wp-block-code">', '']]
+            line_d = ['<DsoftN>']
 
         return container_d, comment_d, line_d, comment_line_d
     
@@ -432,6 +519,8 @@ class OnlineSearch():
                     html_text = html_text[:pos+1] + "<DsoftN>" + html_text[pos+20:pos2] + " " + html_text[pos2:]
                 else:
                     break
+        elif url.find("www.freecodecamp.org"):
+            html_text = html_text.replace('<code class="language-python">', '\n<code class="language-python">')
         
         
         # Global rules
@@ -513,7 +602,7 @@ class OnlineSearch():
                     pos = line.find("<", idx)
                     if pos < 0:
                         pos = len(line)
-                    if line[idx+1:pos].strip() != "":
+                    if line[idx+1:pos] != "":
                         code_line = code_line + line[idx+1:pos]
                     idx = pos-1
                 idx += 1
@@ -527,23 +616,169 @@ class OnlineSearch():
     def _fix_ascii(self, line: str) -> str:
         """Replaces special html characters with ASCII
         """
+        html_entity = [ ["&nbsp;", " ", "non-breaking space"],
+                        ["&#160;", " ", "non-breaking space"],
+                        ["&lt;", "<", "less than"],
+                        ["&gt;", ">", "greater than"],
+                        ["&amp;", "&", "ampersand"],
+                        ["&quot;", '"', "double quotation mark"],
+                        ["&apos;", "'", "single quotation mark (apostrophe)"],
+                        ["&cent;", "c", "cent"],
+                        ["&#162;", "c", "cent"],
+                        ["&pound;", "(POUND)", "pound"],
+                        ["&#163;", "(POUND)", "pound"],
+                        ["&yen", "(YEN)", "yen"],
+                        ["&#165;", "(YEN)", "yen"],
+                        ["&euro;", "(EURO)", "euro"],
+                        ["&#8364;", "(EURO)", "euro"],
+                        ["&copy;", "(c)", "copyright"],
+                        ["&#169;", "(c)", "copyright"],
+                        ["&reg;", "(r)", "registered trademark"],
+                        ["&#174;", "(r)", "registered trademark"],
+                        ["&iexcl;", "(!)", "INVERTED EXCLAMATION MARK"],
+                        ["&#161;", "(!)", "INVERTED EXCLAMATION MARK"],
+                        ["&sect;", "(S)", "SECTION SIGN"],
+                        ["&#167;", "(S)", "SECTION SIGN"],
+                        ["&laquo;", "<<", "DOUBLE LEFT-POINTING ANGLE QUOTATION MARK"],
+                        ["&#171;", "<<", "DOUBLE LEFT-POINTING ANGLE QUOTATION MARK"],
+                        ["&raquo;", ">>", "DOUBLE RIGHT-POINTING ANGLE QUOTATION MARK"],
+                        ["&#187;", ">>", "DOUBLE RIGHT-POINTING ANGLE QUOTATION MARK"],
+                        ["&sup1;", "(1)", "SUPERSCRIPT ONE"],
+                        ["&#185;", "(1)", "SUPERSCRIPT ONE"],
+                        ["&sup2;", "(2)", "SUPERSCRIPT TWO"],
+                        ["&#178;", "(2)", "SUPERSCRIPT TWO"],
+                        ["&sup3;", "(3)", "SUPERSCRIPT THREE"],
+                        ["&#179;", "(3)", "SUPERSCRIPT THREE"],
+                        ["&para;", "--(P)", "PARAGRAPH SIGN"],
+                        ["&#182;", "--(P)", "PARAGRAPH SIGN"],
+                        ["&iquest;", "(?)", "INVERTED QUESTION MARK"],
+                        ["&#191;", "(?)", "INVERTED QUESTION MARK"],
+                        ["&hyphen;", "-", "HYPHEN"],
+                        ["&#8208;", "-", "HYPHEN"],
+                        ["&#8209;", "-", "NON-BREAKING HYPHEN"],
+                        ["&Vert;", "||", "DOUBLE VERTICAL LINE"],
+                        ["&#8214;", "||", "DOUBLE VERTICAL LINE"],
+                        ["&bull;", "*", "BULLET"],
+                        ["&#8226;", "*", "BULLET"],
+                        ["&#8227;", ">", "TRIANGULAR BULLET"],
+                        ["&tprime;", '"""', "TRIPLE PRIME"],
+                        ["&#8244;", '"""', "TRIPLE PRIME"],
+                        ["&#8264;", "?!", "QUESTION EXCLAMATION MARK"],
+                        ["&#8265;", "!?", "EXCLAMATION QUESTION MARK"],
+                        ["&trade;", "(tm)", "TRADE MARK SIGN"],
+                        ["&#8482;", "(tm)", "TRADE MARK SIGN"],
+                        ["&#8451;", "^C", "DEGREE CELSIUS"],
+                        ["&#8457;", "^F", "DEGREE FAHRENHEIT"],
+                        ["&female;", "(F)", "FEMALE SIGN"],
+                        ["&#9792;", "(F)", "FEMALE SIGN"],
+                        ["&male;", "(M)", "MALE SIGN"],
+                        ["&#9794;", "(M)", "MALE SIGN"],
+                        ["&check;", "(Ok)", "CHECK MARK"],
+                        ["&#10003;", "(Ok)", "CHECK MARK"],
+                        ["&crarr;", "(RETURN)", "DOWN ARROW WITH CORNER LEFT"],
+                        ["&#8629;", "(RETURN)", "DOWN ARROW WITH CORNER LEFT"],
+                        ["&#10529;", "(RESIZE)", "NORTH WEST AND SOUTH EAST ARROW"],
+                        ["&#10530;", "(RESIZE)", "NORTH EAST AND SOUTH WEST ARROW"],
+                        ["&ETH;", "DJ", "UPPERCASE ETH"],
+                        ["&#208;", "DJ", "UPPERCASE ETH"],
+                        ["&Euml;", "E", "UPPERCASE E WITH UMLAUT"],
+                        ["&#203;", "E", "UPPERCASE E WITH UMLAUT"],
+                        ["&Ouml;", "O", "UPPERCASE O WITH UMLAUT"],
+                        ["&#214;", "O", "UPPERCASE O WITH UMLAUT"],
+                        ["&Uuml;", "U", "UPPERCASE U WITH UMLAUT"],
+                        ["&#220;", "U", "UPPERCASE U WITH UMLAUT"],
+                        ["&auml;", "a", "LOWERCASE A WITH UMLAUT"],
+                        ["&#228;", "a", "LOWERCASE A WITH UMLAUT"],
+                        ["&euml;", "e", "LOWERCASE E WITH UMLAUT"],
+                        ["&#235;", "e", "LOWERCASE E WITH UMLAUT"],
+                        ["&iuml;", "i", "LOWERCASE I WITH UMLAUT"],
+                        ["&#239;", "i", "LOWERCASE I WITH UMLAUT"],
+                        ["&ouml;", "o", "LOWERCASE O WITH UMLAUT"],
+                        ["&#246;", "o", "LOWERCASE O WITH UMLAUT"],
+                        ["&uuml;", "u", "LOWERCASE U WITH UMLAUT"],
+                        ["&#252;", "u", "LOWERCASE U WITH UMLAUT"],
+                        ["&Cacute;", "C", "UPPERCASE C WITH ACUTE"],
+                        ["&#262;", "C", "UPPERCASE C WITH ACUTE"],
+                        ["&cacute;", "c", "LOWERCASE C WITH ACUTE"],
+                        ["&#263;", "c", "LOWERCASE C WITH ACUTE"],
+                        ["&Ccaron;", "C", "UPPERCASE C WITH CARON"],
+                        ["&#268;", "C", "UPPERCASE C WITH CARON"],
+                        ["&ccaron;", "c", "LOWERCASE C WITH CARON"],
+                        ["&#269;", "c", "LOWERCASE C WITH CARON"],
+                        ["&Dstrok;", "DJ", "UPPERCASE D WITH STROKE"],
+                        ["&#272;", "DJ", "UPPERCASE D WITH STROKE"],
+                        ["&dstrok;", "dj", "LOWERCASE D WITH STROKE"],
+                        ["&#273;", "dj", "LOWERCASE D WITH STROKE"],
+                        ["&Scaron;  ", "S", "UPPERCASE S WITH CARON"],
+                        ["&#352;", "S", "UPPERCASE S WITH CARON"],
+                        ["&scaron;", "s", "LOWERCASE S WITH CARON"],
+                        ["&#353;", "s", "LOWERCASE S WITH CARON"],
+                        ["&Zcaron;", "Z", "UPPERCASE Z WITH CARON"],
+                        ["&#381;", "Z", "UPPERCASE Z WITH CARON"],
+                        ["&zcaron;", "z", "LOWERCASE Z WITH CARON"],
+                        ["&#382;", "z", "LOWERCASE Z WITH CARON"],
+                        ["&#393;", "DJ", "UPPERCASE AFRICAN D"],
+                        ["&#452;", "DZ", "UPPERCASE DZ WITH CARON"],
+                        ["&#453;", "Dz", "UPPERCASE D WITH SMALL LETTER Z WITH CARON"],
+                        ["&#454;", "dz", "LOWERCASE DZ WITH CARON"],
+                        ["&#455;", "LJ", "UPPERCASE LJ"],
+                        ["&#456;", "Lj", "UPPERCASE L WITH SMALL LETTER J"],
+                        ["&#457;", "lj", "LOWERCASE LJ"],
+                        ["&#458;", "NJ", "UPPERCASE NJ"],
+                        ["&#459;", "Nj", "UPPERCASE N WITH SMALL LETTER J"],
+                        ["&#460;", "nj", "LOWERCASE NJ"],
+                        ["&divide;", "/", "DIVISION SIGN"],
+                        ["&#247;", "/", "DIVISION SIGN"],
+                        ["&ne;", "<>", "NOT EQUAL TO SIGN"],
+                        ["&#8800;", "<>", "NOT EQUAL TO SIGN"],
+                        ["&deg;", "^", "DEGREE SIGN"],
+                        ["&#176;", "^", "DEGREE SIGN"],
+                        ["&fnof;", "(Func)", "FUNCTION"],
+                        ["&#402;", "(Func", "FUNCTION"],
+                        ["&empty;", "0", "EMPTY SET"],
+                        ["&#8709;", "0", "EMPTY SET"],
+                        ["&radic;", "(Sqr)", "SQUARE ROOT"],
+                        ["&#8730;", "(Sqr)", "SQUARE ROOT"],
+                        ["&mid;", "|", "DIVIDES"],
+                        ["&#8739;", "|", "DIVIDES"],
+                        ["&sim;", "~", "TILDE OPERATOR"],
+                        ["&#8764;", "~", "TILDE OPERATOR"],
+                        ["&#8797;", "(=DEF)", "EQUAL TO BY DEFINITION"],
+                        ["&frac12;", "1/2", "FRACTION ONE HALF"],
+                        ["&#189;", "1/2", "FRACTION ONE HALF"],
+                        ["&frac14;", "1/4", "FRACTION ONE QUARTER"],
+                        ["&#188;", "1/4", "FRACTION ONE QUARTER"],
+                        ["&frac13;", "1/3", "VULGAR FRACTION ONE THIRD"],
+                        ["&#8531;", "1/3", "VULGAR FRACTION ONE THIRD"],
+                        ["&minus;", "-", "minus"],
+                        ["&#8722;", "-", "minus"],
+                        ["&plusmn;", "+/-", "PLUS OR MINUS SIGN"],
+                        ["&#177;", "+/-", "PLUS OR MINUS SIGN"] ]
         pos=0
         while pos >= 0:
             pos = line.find("&#")
             if pos >= 0:
                 end_pos = line[pos:].find(";") + pos
                 ascii_string = line[pos:end_pos]
-                ascii_val = int(ascii_string[2:])
+                if ascii_string[2:].isdigit():
+                    ascii_val = int(ascii_string[2:])
+                else:
+                    ascii_val = 0
                 lenght = len(ascii_string) + 1
                 replace_char = ""
                 if ascii_val > 31 and ascii_val < 127:
                     replace_char = chr(ascii_val)
                 line = line[:pos] + replace_char + line[pos+lenght:]
-        line = line.replace("&nbsp;", " ")
+
+        if line.find("&") >=0:
+            for entity in html_entity:
+                line = line.replace(entity[0], entity[1])
 
         # Fix other
         if line.find("Code language:") > 0:
             line = line[:line.find("Code language:")]
+
+
 
         return line
 
@@ -564,7 +799,7 @@ if __name__ == "__main__":
     # Samo za testiranje OBRISI
     # url = "https://pythonprogramminglanguage.com/pyqt-line-edit/"
     # url = "https://www.geeksforgeeks.org/pyqt5-qlineedit/"
-    url = "https://codesuche.com/python-examples/PyQt5.QtWidgets.QLineEdit/"
+    url = "https://www.knowprogram.com/python/reverse-number-python/"
     tmp.get_code_examples_all(url)
 
     # OBRISI sve gore

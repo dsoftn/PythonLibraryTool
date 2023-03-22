@@ -1,4 +1,4 @@
-from PyQt5 import QtGui
+from PyQt5 import QtGui, QtCore
 from PyQt5.QtCore import QThread, QCoreApplication
 
 
@@ -19,6 +19,7 @@ class TxtBoxPrinter(QThread):
         self.global_color = QtGui.QColor()
         self.global_text_char_format = QtGui.QTextCharFormat()
         self.cursor = QtWidgets_QTextEdit_object.textCursor()
+        self.palette = QtGui.QPalette(self.box.palette())
         self.no_new_line = False
         self.errors = []
         self.abort_print = False  # If set to true code printing is aborted
@@ -132,14 +133,14 @@ class TxtBoxPrinter(QThread):
 
         return [button_signature, button_text, button_data, extra_data]
 
-    def print_code(self, code_text: str, code_title: str = "Code Example:", font_size: int = 10) -> bool:
+    def print_code(self, code_text: str, code_title: str = "Code Example:", font_size: int = 10, font_name: str = "RobotoMono-Regular") -> bool:
         """Prints the code example.
         Returns:
             bool: False if user aborted printing
         """
         scroll = "False"  # If false txt box will not scroll with printed text
         # Set print format
-        cursor_position = self.print_text("", f"@font_name=Source Code Pro, @color=white, @bc=black, @size={str(font_size)}, scroll={scroll}")
+        cursor_position = self.print_text("", f"@font_name={font_name}, @color=white, @bc=black, @size={str(font_size)}, scroll={scroll}")
         # Transform text into lines
         code_body = code_text.split("\n")
         # Get max lenght and replace starting tabs with 4 space char
@@ -163,9 +164,12 @@ class TxtBoxPrinter(QThread):
                 max_len = len(code_line)
 
         max_len = max_len + 2  # adding 2 for blank space left and right
+        
+        font = QtGui.QFont(font_name, font_size)
+        fm = QtGui.QFontMetrics(font)
+        if fm.width("i"*50) != fm.width("M"*50):
+            max_len = max_len + 1000
 
-        # font = QtGui.QFont("Source Code Pro", font_size)
-        # fm = QtGui.QFontMetrics(font)
         # char_width = fm.widthChar("H")
         # char_num = int(self.box.contentsRect().width() / char_width) - 6
         # if max_len > char_num:
@@ -173,9 +177,9 @@ class TxtBoxPrinter(QThread):
 
         # Print Title
         code_title = " " + code_title + " "*(max_len-len(code_title)+1)
-        self.print_text(code_title, f"color=black, bc=dark grey, wrap=false, scroll={scroll}")
+        self.print_text(code_title, f"color=black, bc=dark grey, wrap=false, scroll={scroll}, line_background=True")
         # Print Code
-        self.code_prettify(code_body, max_len, flags_string=f"wrap=false, scroll={scroll}")
+        self.code_prettify(code_body, max_len, flags_string=f"wrap=false, scroll={scroll}, line_background=True")
         
         # for code_line in code_body:
         #     code_line_text = " " + code_line + " "*(max_len-len(code_line)+1)
@@ -550,7 +554,8 @@ class TxtBoxPrinter(QThread):
             "Move": ["move", "position", "@move", "@position"],
             "Invisible": ["invisible", "ghost", "silent"],
             "wrap_mode": ["wrap_mode", "wrap mode", "wrap", "word_wrap", "word wrap"],
-            "scroll": ["scroll", "track"]
+            "scroll": ["scroll", "track"],
+            "line_background": ["line_background", "line background", "line_bc", "line bc", "line_bg", "line bg", "line_back", "line back", "line"]
         }
         val_syn = {
             "True": ["true", "1", "yes", "ok"],
@@ -565,6 +570,7 @@ class TxtBoxPrinter(QThread):
         char_format = QtGui.QTextCharFormat(self.global_text_char_format)
         color = QtGui.QColor(self.global_color)
         font = QtGui.QFont(self.global_font)
+        line_background = False
         # Set default values for variables
         no_new_line = self.no_new_line
         cursor = self.box.textCursor()
@@ -728,6 +734,12 @@ class TxtBoxPrinter(QThread):
                 elif commands[i][1] in val_syn["False"]:
                     no_new_line = True
                     self.no_new_line = True
+            elif commands[i][0] in comm_syn["line_background"]:
+                val = commands[i][1]
+                if val in val_syn["True"]:
+                    line_background = True
+                else:
+                    self.box.setPalette(self.palette)
             elif commands[i][0] in comm_syn["Move"]:
                 if commands[i][1] in val_syn["Start"]:
                     cursor.movePosition(QtGui.QTextCursor.Start)

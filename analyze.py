@@ -119,5 +119,5 @@ class IspitajObjekat():
 
 class do_it():
     def __init__(self):
-        import urllib
-        i = IspitajObjekat(urllib)
+        import PyQt5
+        i = IspitajObjekat(PyQt5.QtWidgets.QPushButton)

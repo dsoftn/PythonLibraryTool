@@ -22,6 +22,7 @@ class Analyzer(QtWidgets.QMainWindow):
         self.last_txt = []
         self.last_txt_idx = 0
         self.drag_mode = False  # If true then user resize widgets in progress
+        self.setting_drag_mode = False
         self.find_list = []  # List helps to loacate searched item in tree
         self.pages = []  # Info box pages
         self.pages_current = 0  # Current page 
@@ -61,7 +62,6 @@ class Analyzer(QtWidgets.QMainWindow):
         self.ui.tree_lib.itemExpanded.connect(self.tree_lib_item_expanded)
         self.ui.tree_lib.customContextMenuRequested.connect(self.tree_custom_menu_request)
         self.ui.txt_info.selectionChanged.connect(self.txt_info_selection_changed)
-        self.ui.cmb_code_font_size.currentIndexChanged.connect(self.cmb_code_font_change_event)
 
         self.ui.btn_nav_left.clicked.connect(self.btn_nav_left_click)
         self.ui.btn_nav_right.clicked.connect(self.btn_nav_right_click)
@@ -70,14 +70,86 @@ class Analyzer(QtWidgets.QMainWindow):
 
         self.ui.btn_net_doc.clicked.connect(self.btn_net_doc_click)
         self.ui.btn_net_code.clicked.connect(self.btn_net_code_click)
+        self.ui.btn_setting.clicked.connect(self.btn_setting_click)
+
+        self.ui.btn_setting_close.clicked.connect(self.btn_setting_close_click)
+        self.ui.btn_setting_cancel.clicked.connect(self.btn_setting_close_click)
+        self.ui.cmb_setting_font_name.currentTextChanged.connect(self.cmb_setting_font_name_changed)
+        self.ui.cmb_setting_font_size.currentTextChanged.connect(self.cmb_setting_font_name_changed)
+        self.ui.btn_setting_ok.clicked.connect(self.btn_setting_ok_click)
+        
         # Update tree
         self.update_tree()
         self.update_navigation_buttons()
         # Show window
         self.show()
 
-    def cmb_code_font_change_event(self):
-        self.ui.txt_info.setFocus()
+
+    def btn_setting_ok_click(self):
+        # Save code example setting
+        self.conn.set_setting_data("code_example_font_name", 0, self.ui.cmb_setting_font_name.currentText())
+        self.conn.set_setting_data("code_example_font_size", int(self.ui.cmb_setting_font_size.currentText()))
+        self.conn.set_setting_data("code_example_search_site", 0, self.ui.cmb_setting_web_site.currentText())
+        self.online.delete_code_search_results()
+        self.ui.frm_setting.setVisible(False)
+        
+        self.ui.lbl_f_name.setText(self.ui.cmb_setting_font_name.currentText())
+        self.ui.lbl_f_size.setText("size="+self.ui.cmb_setting_font_size.currentText())
+
+    def cmb_setting_font_name_changed(self):
+        self._print_setting_txt_box()
+
+    def _print_setting_txt_box(self, font_name: str = "", font_size: int = 0):
+        if not font_name:
+            font_name = self.ui.cmb_setting_font_name.currentText()
+        if not font_size:
+            font_size = self.ui.cmb_setting_font_size.currentData()
+
+        flags = f"font_name={font_name}, font_size={font_size}, bold=false, underline=false, background=black, "
+        
+        example = qtextedit_simple.TxtBoxPrinter(self.ui.txt_setting_info)
+        example.print_text("# Code Example Font", flags+", cls, color=dark green")
+        
+        example.print_text("    def ", flags+"color=blue, n=false")
+        example.print_text("set_font", flags+"color=yellow, n=false")
+        example.print_text("(", flags+"color=red, n=false")
+        example.print_text("family", flags+"color=#55aaff, n=false")
+        example.print_text(":", flags+"color=yellow, n=false")
+        example.print_text(" str", flags+"color=green, n=false")
+        example.print_text(",", flags+"color=yellow, n=false")
+        example.print_text(" size", flags+"color=#55aaff, n=false")
+        example.print_text(":", flags+"color=yellow, n=false")
+        example.print_text(" int", flags+"color=green, n=false")
+        example.print_text(")", flags+"color=red, n=false")
+        example.print_text(" -> ", flags+"color=red, n=false")
+        example.print_text("QtGui", flags+"color=#217e30, n=false")
+        example.print_text(".", flags+"color=yellow, n=false")
+        example.print_text("QFont", flags+"color=#217e30, n=false")
+        example.print_text(":", flags+"color=yellow, n=true")
+
+        example.print_text("        font", flags+"color=#217e30, n=false")
+        example.print_text(".", flags+"color=yellow, n=false")
+        example.print_text("setFamily", flags+"color=#b6b600, n=false")
+        example.print_text("(", flags+"color=red, n=false")
+        example.print_text(f'"{font_name}"', flags+"color=#940000, n=false")
+        example.print_text(")", flags+"color=red, n=true")
+
+        example.print_text("        font", flags+"color=#217e30, n=false")
+        example.print_text(".", flags+"color=yellow, n=false")
+        example.print_text("setPointSize", flags+"color=#b6b600, n=false")
+        example.print_text("(", flags+"color=red, n=false")
+        example.print_text(str(font_size), flags+"color=#aaffff, n=false")
+        example.print_text(")", flags+"color=red, n=true")
+        example.print_text("", "move=start")
+
+    def btn_setting_close_click(self):
+        self.ui.frm_setting.setVisible(False)
+
+    def btn_setting_click(self):
+        if self.ui.frm_setting.isVisible():
+            self.ui.frm_setting.setVisible(False)
+        else:
+            self.ui.frm_setting.setVisible(True)
 
     def btn_abort_click(self):
         self.ui.btn_abort.setText("Wait...")
@@ -115,13 +187,13 @@ class Analyzer(QtWidgets.QMainWindow):
             url (str): The URL from which we are looking for the code
             container_no (str): Container number that contains code
         """
-        containers = self.online.get_code_examples_geeks_for_geeks(url)
+        containers = self.online.get_code_examples_all(url)
         try:
             container = containers[int(container_no)]
             QtWidgets.QApplication.clipboard().setText(container[1])
             QtWidgets.QMessageBox.information(self, "Copy", "The code has been successfully copied to the clipboard !", QtWidgets.QMessageBox.Ok)
         except Exception as e:
-            QtWidgets.QMessageBox.information(self, "Copy", f"An error occurred, the operation cannot be performed!\n{str(e)}", QtWidgets.QMessageBox.Ok)
+            QtWidgets.QMessageBox.critical(self, "Copy", f"An error occurred, the operation cannot be performed!\n{str(e)}", QtWidgets.QMessageBox.Ok)
     
     def show_code(self, url: str):
         """Prints code example if Info Box.
@@ -135,11 +207,13 @@ class Analyzer(QtWidgets.QMainWindow):
         result = True
         # containers = self.online.get_code_examples_geeks_for_geeks(url)
         containers = self.online.get_code_examples_all(url)
+        font_name = self.conn.get_setting_data("code_example_font_name", get_text=True)
+        font_size = self.conn.get_setting_data("code_example_font_size")
         
         for idx, container in enumerate(containers):
             if container[0] == "|comment|":
                 self.box.print_text("", "scroll=false")
-                f_size = self.ui.cmb_code_font_size.currentData()
+                f_size = font_size
                 if f_size < 12:
                     f_size = 12
                 self.box.print_text(container[1], f"bc=light grey, fc=#2b2b82, size={str(f_size)}, bold=false, font_name=Calibri, scroll=false")
@@ -148,7 +222,7 @@ class Analyzer(QtWidgets.QMainWindow):
                 self.box.print_text("Example code:          ", "size=12, color=dark green, bc=light grey, bold=true, underline=true, n=false, scroll=false")
                 self.box.print_button("copy", "Copy code", url, foreground_color="light blue", extra_data=str(idx), font_size=12, scroll_mode=False)
                 self.box.print_text("", "scroll=false")
-                result = self.box.print_code(container[1], container[0], font_size=self.ui.cmb_code_font_size.currentData())
+                result = self.box.print_code(container[1], container[0], font_name=font_name, font_size=font_size)
                 if not result:
                     break
 
@@ -173,12 +247,23 @@ class Analyzer(QtWidgets.QMainWindow):
         full_obj_name = self.conn.get_full_name(self.ui.tree_lib.currentItem().data(0, QtCore.Qt.UserRole), add_virtual_name=True)
         code = self.online
         code.set_full_object_name(full_obj_name)
-
-        urls = code.get_search_results_for_code_examples_geeks_for_geeks()
+        
+        site_url = self.conn.get_setting_data("code_example_search_site", get_text=True)
+        if site_url.find("ALL") >= 0 or site_url == "":
+            site_url = ""
+            search_in = self.ui.cmb_setting_web_site.currentText()
+        else:
+            site_url = site_url[site_url.find("|")+2:]
+            search_in = site_url
+            
+        urls = code.get_search_results_for_code_examples(site=site_url)
 
         box = self.box
         box.print_text("", "@color=blue, @bc=light grey, @size=12, cls")
         box.print_text(full_obj_name, "size=28, color=dark red, font_name=Source Code Pro Black")
+        box.print_text("", "size=20")
+        box.print_text("Search in: ", "size=18, color=black, n=false")
+        box.print_text(search_in, "size=18, color=dark green, bold=true")
         box.print_text("", "size=20")
         count = 1
         for url in urls:
@@ -344,6 +429,7 @@ class Analyzer(QtWidgets.QMainWindow):
     def frm_find_click(self):
         """Finds the object in the 'Tree' view.
         """
+        print (self.ui.frm_find.isVisible())
         item = None
         parent = self.ui.tree_lib.invisibleRootItem()
         result = self._find_item(parent, 0)
@@ -882,11 +968,13 @@ class Analyzer(QtWidgets.QMainWindow):
                 python_code = ""
                 for i in result:
                     python_code = python_code + i
-                self.box.print_code(python_code, file_name, font_size=self.ui.cmb_code_font_size.currentData())
+                self.box.print_code(python_code, file_name, font_size=self.ui.cmb_setting_font_size.currentData())
         elif a0.key() == QtCore.Qt.Key_V and a0.modifiers() == QtCore.Qt.ControlModifier:
             python_code =  QtWidgets.QApplication.clipboard().text()
             self.box.print_text("", "cls")
-            self.box.print_code(python_code, "Clipboard text:", font_size=self.ui.cmb_code_font_size.currentData())
+            self.box.print_code(python_code, "Clipboard text:", font_size=self.ui.cmb_setting_font_size.currentData())
+        elif a0.key() == QtCore.Qt.Key_T and a0.modifiers() == QtCore.Qt.ControlModifier:
+            self.show_code("https://www.knowprogram.com/python/reverse-number-python/")
 
         return super().keyPressEvent(a0)
 
@@ -1145,19 +1233,29 @@ class Analyzer(QtWidgets.QMainWindow):
         self.ui.frm_net.move(self.ui.ln_sep.pos().x(), self.ui.frm_net.pos().y())
 
     def mousePressEvent(self, a0: QtGui.QMouseEvent) -> None:
-        if self.ui.frm_find.isVisible:
-            x = a0.localPos().x()
-            y = a0.localPos().y()
+        x = a0.localPos().x()
+        y = a0.localPos().y()
+
+        if self.ui.frm_find.isVisible():
             fx = self.ui.frm_find.pos().x()
             fy = self.ui.frm_find.pos().y()
             fx1 = fx + self.ui.frm_find.width()
             fy1 = fy + self.ui.frm_find.height()
             if x > fx and x < fx1 and y > fy and y < fy1:
                 self.frm_find_click()
-        x = a0.localPos().x()
         drag_point = [self.ui.ln_sep.pos().x(), self.ui.ln_sep.pos().x()+1, self.ui.ln_sep.pos().x()+2, self.ui.ln_sep.pos().x()+3]
         if a0.button() == QtCore.Qt.LeftButton and x in drag_point:
-            self.drag_mode = True
+            if not self.setting_drag_mode:
+                self.drag_mode = True
+        if self.ui.frm_setting.isVisible() and not self.drag_mode:
+            s_x = self.ui.frm_setting.pos().x()
+            s_y = self.ui.frm_setting.pos().y()
+            s_x2 = self.ui.lbl_setting_caption.width() + s_x
+            s_y2 = self.ui.lbl_setting_caption.height() + s_y
+            if s_x <= x <= s_x2 and s_y <= y <= s_y2:
+                self.setting_drag_mode = True
+                self.setting_x_diff = x - s_x
+                self.setting_y_diff = y - s_y
         return super().mousePressEvent(a0)
     
     def mouseMoveEvent(self, a0: QtGui.QMouseEvent) -> None:
@@ -1165,27 +1263,121 @@ class Analyzer(QtWidgets.QMainWindow):
         y = a0.localPos().y()
         if self.drag_mode and x > 99 and x < (self.width()-50):
             self.resize_widgets(x)
+        elif self.setting_drag_mode:
+            xx = x - self.setting_x_diff
+            yy = y - self.setting_y_diff
+            if xx < 0:
+                xx = 0
+            if xx > self.contentsRect().width()-780:
+                xx = self.contentsRect().width()-780
+            if yy > self.contentsRect().height()-430:
+                yy = self.contentsRect().height()-430
+            if yy < 0:
+                yy = 0
+            self.ui.frm_setting.move(xx, yy)
         return super().mouseMoveEvent(a0)
     
     def mouseReleaseEvent(self, a0: QtGui.QMouseEvent) -> None:
         if a0.button() == QtCore.Qt.LeftButton:
             self.drag_mode = False
+            self.setting_drag_mode = False
             self.scale = self.ui.ln_sep.pos().x()/self.width()
         return super().mouseReleaseEvent(a0)
+
+    def _fill_setting_web_site_combo_box(self):
+        """Site ranking:    
+                            4000 - 5000  Good
+                            3000 - 4000  Forum
+                            2000 - 3000  Average
+                            1000 - 2000  Low
+                            0001 - 1000  Documentation
+        """
+        search_site = [ ["https://www.geeksforgeeks.org/", 4001],
+                        ["https://pythonbasics.org/", 4002],
+                        ["https://zetcode.com/", 4003],
+                        ["https://pythonprogramminglanguage.com/", 4004],
+                        ["https://www.pythonforbeginners.com/", 4005],
+                        ["https://pythonpyqt.com/", 4006],
+                        ["https://www.edureka.co/", 4007],
+                        ["https://www.w3schools.com/", 4008],
+                        ["https://www.programiz.com/", 4009],
+                        ["https://www.freecodecamp.org/", 4010],
+                        ["https://www.tutorialspoint.com/", 4011],
+                        ["https://coderslegacy.com/", 4012],
+                        ["https://www.pythontutorial.net/", 4013],
+                        ["https://realpython.com/", 4014],
+
+                        ["https://stackoverflow.com/", 3001],
+                        ["https://python-forum.io/", 3002],
+
+                        ["https://www.knowprogram.com/", 2001],
+                        ["https://datagy.io/", 2002],
+                        ["https://sparkbyexamples.com/", 2003],
+                        ["https://www.machinelearningplus.com/", 2004],
+                        ["https://www.dataquest.io/", 2005],
+                        ["https://www.pythonguis.com/", 2006],
+                        ["https://clay-atlas.com/", 2007],
+                        ["https://pythonexamples.org/", 2008],
+
+                        ["https://www.programcreek.com/", 1001],
+                        ["https://python.hotexamples.com/", 1002],
+                        ["https://programtalk.com/", 1003],
+                        ["https://codesuche.com/", 1004],
+
+                        ["https://doc.qt.io/", 1],
+                        ["https://likegeeks.com/", 2],
+                        ["https://data-flair.training/", 3],
+                        ["https://pypi.org/", 4],
+                        ["https://www.guru99.com/", 5],
+                        ["https://docs.python.org/", 6],
+                         ]
+        self.ui.cmb_setting_web_site.addItem("Search ALL web sites.", 0)
+        rank = ""
+        for item in search_site:
+            if 0 < item[1] < 1000:
+                rank = "Documentation | "
+            elif 1000 < item[1] < 2000:
+                rank = "Rank: Low | "
+            elif 2000 < item[1] < 3000:
+                rank = "Rank: Average | "
+            elif 3000 < item[1] < 4000:
+                rank = "Rank: Forum | "
+            elif 4000 < item[1] < 5000:
+                rank = "Rank: Good | "
+            self.ui.cmb_setting_web_site.addItem(rank + item[0], item[1])
+
+        # Add fonts
+        for family in QtGui.QFontDatabase().families():
+            self.ui.cmb_setting_font_name.addItem(family)
+            
 
     def load_setting(self):
         """Loading settings. It is called at the start of the application.
         """
         style = "QTreeWidget::item:selected { background-color: green; }"
         self.ui.tree_lib.setStyleSheet(style)
-        # Hide Find Frame
+        # Hide Widgets
         self.ui.frm_find.setVisible(False)
-        # Hide Abort button
+        self.ui.frm_setting.setVisible(False)
         self.ui.btn_abort.setVisible(False)
-        # Fill combo - Code Font sizes
-        for i in range(4, 21):
-            self.ui.cmb_code_font_size.addItem(str(i), i)
-        self.ui.cmb_code_font_size.setCurrentIndex(6)
+        # Setting box position
+        self.ui.frm_setting.move(self.conn.get_setting_data("setting_box_posx"), self.conn.get_setting_data("setting_box_posy"))
+        # Fill combos
+        self._fill_setting_web_site_combo_box()
+        for i in range(4, 36):
+            self.ui.cmb_setting_font_size.addItem(str(i), i)
+        font_name = self.conn.get_setting_data("code_example_font_name", get_text=True)
+        font_size = self.conn.get_setting_data("code_example_font_size")
+        search_site = self.conn.get_setting_data("code_example_search_site", get_text=True)
+        self.ui.lbl_f_name.setText(font_name)
+        self.ui.lbl_f_size.setText(f"Size={font_size}")
+        if not font_name:
+            font_name = "RobotoMono-Regular"
+        if font_size == 0:
+            font_size = 10
+        self.ui.cmb_setting_font_size.setCurrentText(str(font_size))
+        self.ui.cmb_setting_font_name.setCurrentText(font_name)
+        self.ui.cmb_setting_web_site.setCurrentText(search_site)
         # Get last search text
         result = self.conn.get_setting_data("last_search", get_text=True)
         if type(result) == str:
@@ -1312,6 +1504,9 @@ class Analyzer(QtWidgets.QMainWindow):
         self.conn.set_setting_data("main_win_delimiter_line", self.ui.ln_sep.pos().x(), "Delimiter line position")
         # Save Info box pages
         self.conn.save_info_box_pages(self.pages)
+        # Save Setting Box position
+        self.conn.set_setting_data("setting_box_posx", self.ui.frm_setting.pos().x(), "")
+        self.conn.set_setting_data("setting_box_posy", self.ui.frm_setting.pos().y(), "")
 
 
 class CalculateAndSave(QThread):
