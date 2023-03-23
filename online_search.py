@@ -278,29 +278,52 @@ class OnlineSearch():
         html_text = self._fix_html(url, html_text)
 
         # Parse html
-        container_delimiters = [['class="code"', ''],
+        container_delimiters = [['class="code', ''],
                                 ['class=code>', ''],
-                                ['class="example"', ''],
+                                ['class="codeblock">', ''],
+                                ['class="code-block', ''],
+                                ['class="program_box">', ''],
+                                ['class="crayon-code">', ''],
+                                ['class="kj kk kl km gt lq lr ls lt aw lu bi">', ''],
+                                [' class="ln kb hi lj b fi lo lp l lq lr">', ''],
+                                ['class="kn ko kp kq fd kr ks kt ku aw kv bi">', ''],
+                                ['class="kw jl hi ks b fi kx ky l kz la">', ''],
+                                ['class="example', ''],
                                 ['class="python-exec">', ''],
+                                ['class="python">', ''],
+                                ['class="just-code notranslate language-python" data-lang="python3">', ''],
                                 ['class="prettyprint">', ''],
                                 ['class="prettyprint notranslate">', ''],
-                                ['class="wp-block-syntaxhighlighter-code "', ''],
+                                ['class="wp-block-syntaxhighlighter-code ', ''],
                                 ['class="wp-block-code language-python">', ''],
-                                ['class="wp-block-code">', ''],
+                                ['class="wp-block-codemirror-blocks-code-block code-block">', ''],
+                                ['class="wp-block-code>', ''],
+                                ['class="wp-block-', ''],
                                 ['class="language-python">', ''],
-                                ['class="language-clike"', ''],
-                                ['class="language-like"', ''],
+                                ['class="“language-python”">', ''],
+                                ['class="language-clike', ''],
+                                ['class="language-like', ''],
+                                ['class="language', ''],
+                                ['class="just-code', ''],
                                 ['class="highlight python', ''],
+                                ['class="EnlighterJSRAW', ''],
+                                ['class="python codecolorer">', ''],
+                                ['<pre class="highlight">', ''],
                                 ['class="highlight">', ''],
                                 ['class="answercell post-layout--right">', ''],
                                 ['class="brush: python; title: ; notranslate" title>', ''],
                                 ['class="brush: python" title="Python Code:">', ''],
-                                ['style="font-size:', ''],
-                                ['textarea readonly=""', ''],
-                                ['class="python">', ''],
-                                ['<code>', ''] ]
+                                ['style="overflow-wrap', ''],
+                                ['class="lang: decode:true "', ''],
+                                ['class="lang', ''],
+                                ['textarea readonly="', ''],
+                                ['<code>', ''],
+                                ['class="kj ', ''],
+                                [' class="ln ', ''],
+                                ['<pre>', ''] ]
 
-        comment_delimiters = [  ['class=text>', ''],
+        comment_delimiters = [  ['class="article-summary abstract">', ''],
+                                ['class=text>', ''],
                                 ['class="examples-description">', ''],
                                 ['class="entry-content" itemprop="text">', ''],
                                 ['id="index_page_top_text_box">', ''],
@@ -316,15 +339,18 @@ class OnlineSearch():
         line_delimiters = [ 'class="line"',
                             'class="line number',
                             '<code class="hljs language-python">',
+                            'class="crayon-line',
                             '<code>',
+                            '<br/>',
+                            '<<span class="',
                             '<DsoftN>' ]
         
         comment_line_delimiters = [ '<p>',
                                     '<DsoftN>' ]
         
         # Look for site specific delimiters:
-        container_delimiters, comment_delimiters, line_delimiters,comment_line_delimiters = self._find_delimiters(url, container_delimiters, comment_delimiters, line_delimiters, comment_line_delimiters)
-
+        html_text, container_delimiters, comment_delimiters, line_delimiters,comment_line_delimiters = self._find_delimiters(url, html_text, container_delimiters, comment_delimiters, line_delimiters, comment_line_delimiters)
+        
         # Find end string for code
         for idx, delim in enumerate(container_delimiters):
             if delim[1] == "":
@@ -335,6 +361,8 @@ class OnlineSearch():
                     if pos >= 0:
                         start_pos = html_text[:pos+1].rfind("<")
                         tag_string = html_text[start_pos:pos].strip()
+                        if tag_string.find(" ") > 0:
+                            tag_string = tag_string[:tag_string.find(" ")]
                         tag_string = "</" + tag_string[1:]
                     else:
                         tag_string = ""
@@ -370,16 +398,18 @@ class OnlineSearch():
 
         return result
 
-    def _find_delimiters(self, url: str, container_d: list, comment_d: list, line_d: list, comment_line_d: list) -> list:
+    def _find_delimiters(self, url: str, html_text: str, container_d: list, comment_d: list, line_d: list, comment_line_d: list) -> list:
         """If there are specific delimiters for the requested site, then it returns a list containing only those delimiters,
         if nothing is found, it returns the original list.
         """
         if url.find("www.tutorialspoint.com") >= 0:
-            container_d = [['class="prettyprint notranslate">', '']]
-            comment_d = [['<tr>', '']]
+            container_d = [ ['class="just-code notranslate language-python" data-lang="python3">', ''],
+                            ['class="prettyprint notranslate">', '']]
+            comment_d = [['class="col-sm-12 col-md-8 col-xl-6 rounded-3 tutorial-content" id="mainContent">', ''], ['<tr>', '']]
             line_d = ["<DsoftN>"]
         elif url.find("www.geeksforgeeks.org") >= 0:
-            container_d = [['class=code>', ''], ['class="code"', '']]
+            container_d = [ ['class=code>', ''],
+                            ['class="code"', '']]
             line_d = ['class="line number', 'class="line"']
         elif url.find("www.pythontutorial.net") >= 0:
             container_d = [['class="wp-block-code"', '']]
@@ -489,7 +519,8 @@ class OnlineSearch():
             container_d = [['class="lang-python">', '']]
             line_d = ['<DsoftN>']
         elif url.find("www.pythonforbeginners.com") >= 0:
-            container_d = [['class="language-python">', '']]
+            container_d = [ ['class="language-python">', ''],
+                            ['class="“language-python”">', '']]
             line_d = ['<DsoftN>']
             comment_d = [['class="entry-content">', '']]
             comment_line_d = ['<p>']
@@ -497,13 +528,29 @@ class OnlineSearch():
             container_d = [['class="language-python">', '']]
             line_d = ['<DsoftN>']
         elif url.find("datagy.io") >= 0:
-            container_d = [['class="wp-block-code language-python">', '']]
+            container_d = [ ['class="wp-block-code language-python">', ''],
+                            ['class="wp-block-code', '']]
             line_d = ['<DsoftN>']
         elif url.find("www.knowprogram.com") >= 0:
             container_d = [['class="wp-block-code">', '']]
             line_d = ['<DsoftN>']
+        elif url.find("blog.devgenius.io") >= 0:
+            html_text = html_text.replace("<span id=", "<Dsoftn><br/><")
+        elif url.find("github.com") >= 0:
+            comment_d = [['data-target="readme-toc.content"', '']]
+            comment_line_d = ['dir="auto"']
+        elif url.find("www.techrepublic.com") >= 0:
+            container_d = [['<pre>', '']]
+            line_d = ['<DsoftN>']
+            comment_d = [['class="article-summary abstract">', '']]
+            comment_line_d = ['<DsoftN>']
+        elif url.find("www.turing.com") >= 0:
+            container_d = [['class="RichText_root__PJzIA ResourcesContent', '']]
+            line_d = ['<p>']
+        elif url.find("blog.gitnux.com") >= 0:
+            container_d = [['<code>', '']]
 
-        return container_d, comment_d, line_d, comment_line_d
+        return html_text, container_d, comment_d, line_d, comment_line_d
     
     def _fix_html(self, url: str, html_text: str) -> str:
         """Fixes the HTML code depending on the site from which the data is downloaded.
@@ -563,7 +610,8 @@ class OnlineSearch():
             for line_delimiter in line_delimiters:
                 code_block = [x + "<DsoftN>" for x in container.split(line_delimiter) if x != ""]
                 if len(code_block) > 1:
-                    code_block.pop(0)
+                    if line_delimiter.find("DsoftN") >= 0:
+                        code_block.pop(0)
                     break
             # if len(code_block) <= 1:
             #     continue
@@ -593,11 +641,16 @@ class OnlineSearch():
                 char = line[idx:idx+1]
 
                 if char == "<":
-                    pos = line.find(">", idx)
-                    if pos >= 0:
-                        idx = pos-1
+                    if line[idx:idx+2] == "< ":
+                        code_line = code_line + "< "
+                        idx += 1
+                        char = ">"
                     else:
-                        break
+                        pos = line.find(">", idx)
+                        if pos >= 0:
+                            idx = pos-1
+                        else:
+                            break
                 if char == ">":
                     pos = line.find("<", idx)
                     if pos < 0:
@@ -618,11 +671,23 @@ class OnlineSearch():
         """
         html_entity = [ ["&nbsp;", " ", "non-breaking space"],
                         ["&#160;", " ", "non-breaking space"],
+                        ["&#xa0;", " ", "non-breaking space"],
+                        ["\\xa0", " ", "non-breaking space"],
                         ["&lt;", "<", "less than"],
+                        ["&#x3c;", "<", "less than"],
+                        ["\\x3c", "<", "less than"],
                         ["&gt;", ">", "greater than"],
+                        ["&#x3e;", ">", "greater than"],
+                        ["\\x3e", ">", "greater than"],
                         ["&amp;", "&", "ampersand"],
+                        ["&#x26;", "&", "ampersand"],
+                        ["\\x26", "&", "ampersand"],
                         ["&quot;", '"', "double quotation mark"],
+                        ["&#x22;", '"', "double quotation mark"],
+                        ["\\x22", '"', "double quotation mark"],
                         ["&apos;", "'", "single quotation mark (apostrophe)"],
+                        ["&#x27;", "'", "single quotation mark (apostrophe)"],
+                        ["\\x27", "'", "single quotation mark (apostrophe)"],
                         ["&cent;", "c", "cent"],
                         ["&#162;", "c", "cent"],
                         ["&pound;", "(POUND)", "pound"],
@@ -754,6 +819,14 @@ class OnlineSearch():
                         ["&#8722;", "-", "minus"],
                         ["&plusmn;", "+/-", "PLUS OR MINUS SIGN"],
                         ["&#177;", "+/-", "PLUS OR MINUS SIGN"] ]
+
+        if line.find("&") >=0:
+            for entity in html_entity:
+                line = line.replace(entity[0], entity[1])
+        if line.find("&") >=0:
+            for entity in html_entity:
+                line = line.replace(entity[0], entity[1])
+
         pos=0
         while pos >= 0:
             pos = line.find("&#")
@@ -770,15 +843,9 @@ class OnlineSearch():
                     replace_char = chr(ascii_val)
                 line = line[:pos] + replace_char + line[pos+lenght:]
 
-        if line.find("&") >=0:
-            for entity in html_entity:
-                line = line.replace(entity[0], entity[1])
-
         # Fix other
         if line.find("Code language:") > 0:
             line = line[:line.find("Code language:")]
-
-
 
         return line
 

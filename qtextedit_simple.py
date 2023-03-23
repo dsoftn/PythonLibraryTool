@@ -235,7 +235,6 @@ class TxtBoxPrinter(QThread):
             end_line = len(code_line)
             for char in code_line:
                 count += 1
-
                 if big_quota_mode:
                     quota_mode = 1
 

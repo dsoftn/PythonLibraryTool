@@ -592,7 +592,8 @@ background-color: rgba(122, 255, 115, 95);</string>
       <string>Terminates the execution of an operation in progress</string>
      </property>
      <property name="styleSheet">
-      <string notr="true">color: rgb(255, 0, 0);</string>
+      <string notr="true">color: rgb(170, 0, 0);
+background-color: rgb(255, 199, 102);</string>
      </property>
      <property name="text">
       <string>Abort</string>

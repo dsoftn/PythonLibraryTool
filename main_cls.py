@@ -211,6 +211,8 @@ class Analyzer(QtWidgets.QMainWindow):
         font_size = self.conn.get_setting_data("code_example_font_size")
         
         for idx, container in enumerate(containers):
+            if container == []:
+                continue
             if container[0] == "|comment|":
                 self.box.print_text("", "scroll=false")
                 f_size = font_size
@@ -968,13 +970,22 @@ class Analyzer(QtWidgets.QMainWindow):
                 python_code = ""
                 for i in result:
                     python_code = python_code + i
-                self.box.print_code(python_code, file_name, font_size=self.ui.cmb_setting_font_size.currentData())
+                font_name = self.conn.get_setting_data("code_example_font_name", get_text=True)
+                font_size = self.conn.get_setting_data("code_example_font_size")
+                self.box.print_code(python_code, file_name, font_size=font_size, font_name=font_name)
         elif a0.key() == QtCore.Qt.Key_V and a0.modifiers() == QtCore.Qt.ControlModifier:
             python_code =  QtWidgets.QApplication.clipboard().text()
+            font_name = self.conn.get_setting_data("code_example_font_name", get_text=True)
+            font_size = self.conn.get_setting_data("code_example_font_size")
             self.box.print_text("", "cls")
-            self.box.print_code(python_code, "Clipboard text:", font_size=self.ui.cmb_setting_font_size.currentData())
+            self.box.print_code(python_code, "Clipboard text:", font_size=font_size, font_name=font_name)
         elif a0.key() == QtCore.Qt.Key_T and a0.modifiers() == QtCore.Qt.ControlModifier:
-            self.show_code("https://www.knowprogram.com/python/reverse-number-python/")
+            url, ok = QtWidgets.QInputDialog.getText(self, "URL", "Enter URL: ")
+            if ok:
+                self.box.print_text("", "cls")
+                self.box.print_text(url, "c=dark green, bc=light grey, size=16")
+                self.box.print_text("")
+                self.show_code(url)
 
         return super().keyPressEvent(a0)
 
@@ -1293,11 +1304,11 @@ class Analyzer(QtWidgets.QMainWindow):
                             0001 - 1000  Documentation
         """
         search_site = [ ["https://www.geeksforgeeks.org/", 4001],
-                        ["https://pythonbasics.org/", 4002],
+                        ["https://pythonpyqt.com/", 4001],
                         ["https://zetcode.com/", 4003],
                         ["https://pythonprogramminglanguage.com/", 4004],
                         ["https://www.pythonforbeginners.com/", 4005],
-                        ["https://pythonpyqt.com/", 4006],
+                        ["https://pythonbasics.org/", 4006],
                         ["https://www.edureka.co/", 4007],
                         ["https://www.w3schools.com/", 4008],
                         ["https://www.programiz.com/", 4009],
