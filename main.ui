@@ -63,6 +63,8 @@ and you can also write:
 or
 	from PyQt5.QtCore import QThread
 
+Or just type a question, like, 'How to draw rectangle with pygame'
+
 Note, Use the up and down arrows to navigate through your previous entries</string>
     </property>
     <property name="styleSheet">
@@ -545,6 +547,9 @@ background-color: rgba(122, 255, 115, 95);</string>
        <height>28</height>
       </rect>
      </property>
+     <property name="toolTip">
+      <string>Code Example setting</string>
+     </property>
      <property name="text">
       <string/>
      </property>
@@ -740,6 +745,9 @@ background-color: rgb(255, 199, 102);</string>
        <height>211</height>
       </rect>
      </property>
+     <property name="toolTip">
+      <string>An example of what the Code Example will look like.</string>
+     </property>
      <property name="styleSheet">
       <string notr="true">background-color: rgb(0, 0, 0);
 color: rgb(0, 170, 0);</string>
@@ -766,6 +774,9 @@ p, li { white-space: pre-wrap; }
        <width>71</width>
        <height>31</height>
       </rect>
+     </property>
+     <property name="toolTip">
+      <string>Font size</string>
      </property>
     </widget>
     <widget class="QLabel" name="lbl_font_name">
@@ -848,6 +859,9 @@ p, li { white-space: pre-wrap; }
        <pointsize>10</pointsize>
       </font>
      </property>
+     <property name="toolTip">
+      <string>The website on which the search is performed.</string>
+     </property>
     </widget>
     <widget class="QPushButton" name="btn_setting_ok">
      <property name="geometry">
@@ -925,6 +939,9 @@ p, li { white-space: pre-wrap; }
       <font>
        <pointsize>10</pointsize>
       </font>
+     </property>
+     <property name="toolTip">
+      <string>The font that will be used for display Code Examples.</string>
      </property>
     </widget>
    </widget>

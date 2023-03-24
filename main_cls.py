@@ -1188,15 +1188,11 @@ class Analyzer(QtWidgets.QMainWindow):
         if self.ui.txt_lib.text().strip() == "":
             self.ui.txt_lib.setText("")
             return
-        # Make progress bar visible and hide checkbox
-        # UPDATE: checkbox and progress abandoned, lbl_analyze added
-        # self.ui.prb_lib.setVisible(True)
-        # self.ui.chk_sub_lib.setVisible(False)
+        search_text = self.ui.txt_lib.text().strip()
         self.ui.lbl_items_analyzed.setVisible(True)
         # Process the data
         process = CalculateAndSave()
         process.update_progress.connect(self.update_progress)
-        # result = process.calculate_and_save_all_data(self.ui.chk_sub_lib.isChecked(), self.ui.txt_lib.text())
         result = process.calculate_and_save_all_data(False, self.ui.txt_lib.text())
         # Set widgets back to normal
         if result[0] != "(C)":
@@ -1207,11 +1203,50 @@ class Analyzer(QtWidgets.QMainWindow):
             self.update_progress([result[2], "color=#aa0000"])
         self.ui.txt_lib.setText("")
         self.ui.txt_lib.setPlaceholderText(self.ui.lbl_items_analyzed.text())
-        # self.ui.chk_sub_lib.setVisible(True)
-        # self.ui.prb_lib.setVisible(False)
         self.ui.lbl_items_analyzed.setVisible(False)
         # Refresh tree
         self.update_tree()
+        # If result[1] is 'Error.' search online for answer
+        if result[1].find("Error.") >= 0:
+            self._search_result_on_question(search_text)
+
+    def _search_result_on_question(self, search_text: str):
+        msg_text = f"Python library analyzer did not found any library with that name.\nWould you like to find an online code example for this topic?\n{search_text}"
+        result = QtWidgets.QMessageBox.question(self, "Search web ?", msg_text, QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No | QtWidgets.QMessageBox.Cancel, QtWidgets.QMessageBox.Yes)
+        if result != QtWidgets.QMessageBox.Yes:
+            return
+        tmp = [x.strip() for x in search_text.split(" ") if x.strip() != ""]
+        if not tmp:
+            return
+        full_obj_name = ".".join(tmp)
+        code = self.online
+        # site_url = self.conn.get_setting_data("code_example_search_site", get_text=True)
+        site_url = ""
+            
+        urls = code.get_search_results_for_code_examples(full_object_name=full_obj_name, site=site_url, keyword="python")
+
+        box = self.box
+        box.print_text("", "@color=blue, @bc=light grey, @size=12, cls")
+        box.print_text(search_text, "size=22, color=dark red, font_name=Source Code Pro Black")
+        box.print_text("", "size=20")
+        box.print_text("Search in: ", "size=18, color=black, n=false")
+        box.print_text("All Web Sites", "size=18, color=dark green, bold=true")
+        box.print_text("", "size=20")
+        count = 1
+        for url in urls:
+            box.print_text(f"Search result ({count}):  ", "bc=light grey, size=14, bold=true, color=dark green, font_name=fixed, n=false")
+            box.print_button("link", "Open link in browser", url[0].strip(), foreground_color="white")
+            box.print_text("")
+            box.print_text(url[0])
+            box.print_text(url[1], "fc=black, bc=light grey, size=9")
+            box.print_button("code", "Show example code", url[0].strip(), font_size=20)
+            box.print_text("", "size=12")
+            box.print_text("", "size=12")
+            box.print_text("", "size=12")
+            count += 1
+
+        box.print_text("", "move=start")
+        self.add_info_box_page()
 
     def resizeEvent(self, a0: QtGui.QResizeEvent) -> None:
         self.resize_widgets()
@@ -1620,7 +1655,7 @@ class CalculateAndSave(QThread):
         result = self.execute_file()
         if result != "Ok":
             self._update_progress([result[0], "color=#ff0000"])
-            return "(C)", result[0], result[1]
+            return "(C)", "Error." + result[0], result[1]
         # Save data to database
         json_data = self._load_json_file()
         data_to_append = self._make_data_to_append(json_data[0], 0)

@@ -52,11 +52,12 @@ class OnlineSearch():
         else:
             return ""
 
-    def _duck_search_for_code(self, site_url: str = ""):
+    def _duck_search_for_code(self, site_url: str = "", keyword: str = "python+code+example"):
         """Performs a duckduckgo.com search for code examples for the requested object.
         If the site_url parameter is passed, the search is performed only on that site.
         Args:
             site_url (str): Searches on this site only
+            keyword (str): default 'python+code+example'
         Return:
             None: Creates self._code_urls list
         """
@@ -64,9 +65,9 @@ class OnlineSearch():
         self._code_urls = []
         # Define Duck url
         if site_url:
-            url = f"https://lite.duckduckgo.com/lite/search?q=site%3A+{site_url}+Python+code+example+{self._full_object_name.replace('.', '+')}"
+            url = f"https://lite.duckduckgo.com/lite/search?q=site%3A+{site_url}+{keyword}+{self._full_object_name.replace('.', '+')}"
         else:
-            url = f"https://lite.duckduckgo.com/lite/search?q=Python+code+example+{self._full_object_name.replace('.', '+')}"
+            url = f"https://lite.duckduckgo.com/lite/search?q={keyword}+{self._full_object_name.replace('.', '+')}"
         # Get Duck search page source code
         result_page = urllib.request.urlopen(url)
         html = result_page.read().decode("utf-8")
@@ -94,20 +95,19 @@ class OnlineSearch():
         if not self._code_urls:
             self._error_message = "Duck did not find any results for the requested search."
 
-    def get_search_results_for_code_examples(self, full_object_name: str = "", site: str = ""):
+    def get_search_results_for_code_examples(self, full_object_name: str = "", site: str = "", keyword: str = ""):
         """It searches the site 'www.geeksforgeks.org' trying to find code examples
          for the requested object.
          Search engine: www.duckduckgo.com
          Returns:
             list: list of code examples [title (str), text (str)]
          """
-
         if self._full_object_name != full_object_name and full_object_name != "":
             self.set_full_object_name(full_object_name)
         
         # Search with Duck
         if not self._code_urls:
-            self._duck_search_for_code(site_url=site)
+            self._duck_search_for_code(site_url=site, keyword=keyword)
             if not self._code_urls:
                 return
         return self._code_urls
@@ -288,6 +288,7 @@ class OnlineSearch():
                                 [' class="ln kb hi lj b fi lo lp l lq lr">', ''],
                                 ['class="kn ko kp kq fd kr ks kt ku aw kv bi">', ''],
                                 ['class="kw jl hi ks b fi kx ky l kz la">', ''],
+                                ['class="jp jq jr js ey ln lo lp bn lq lr bi">', ''],
                                 ['class="example', ''],
                                 ['class="python-exec">', ''],
                                 ['class="python">', ''],
