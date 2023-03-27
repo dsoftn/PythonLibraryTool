@@ -556,18 +556,18 @@ class OnlineSearch():
     def _fix_html(self, url: str, html_text: str) -> str:
         """Fixes the HTML code depending on the site from which the data is downloaded.
         """
-        if url.find("www.geeksforgeeks.org") >= 0:
-            pos = 0
-            while True:
-                pos = html_text.find("<code class=keyword>", pos)
-                if pos >= 0:
-                    pos2 = html_text.find("<", pos+20)
-                    if pos2 == -1:
-                        break
-                    html_text = html_text[:pos+1] + "<DsoftN>" + html_text[pos+20:pos2] + " " + html_text[pos2:]
-                else:
-                    break
-        elif url.find("www.freecodecamp.org"):
+        # if url.find("www.geeksforgeeks.org") >= 0:
+        #     pos = 0
+        #     while True:
+        #         pos = html_text.find("<code class=keyword>", pos)
+        #         if pos >= 0:
+        #             pos2 = html_text.find("<", pos+20)
+        #             if pos2 == -1:
+        #                 break
+        #             html_text = html_text[:pos+1] + "<DsoftN>" + html_text[pos+20:pos2] + " " + html_text[pos2:]
+        #         else:
+        #             break
+        if url.find("www.freecodecamp.org"):
             html_text = html_text.replace('<code class="language-python">', '\n<code class="language-python">')
         
         

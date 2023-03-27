@@ -267,6 +267,9 @@ class TxtBoxPrinter(QThread):
                             quota_mode = 0
                         else:
                             quota_mode = 2
+                    if word:
+                        self._write_word(word, flags_string)
+                        word = ""
                     color = self.code_dict["quota_c"]
                     self.print_text(char, f"{flags_string}, color={color}, n=false")
                     continue

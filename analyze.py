@@ -119,5 +119,5 @@ class IspitajObjekat():
 
 class do_it():
     def __init__(self):
-        import how to draw line or rectangle with pygame
-        i = IspitajObjekat(how to draw line or rectangle with pygame)
+        import pygame
+        i = IspitajObjekat(pygame)
