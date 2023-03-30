@@ -266,9 +266,12 @@ class OnlineSearch():
         try:
             html_text = requests.get(url).text
         except Exception as e:
-            print ("Error: ", str(e))
-            return [[]]
-
+            try:
+                urllib_object = urllib.request.urlopen(url)
+                html_text = str(urllib_object.read())
+            except Exception as e:
+                print ("Error: ", str(e))
+                return [[]]
         html_text = html_text.replace("\t", "    ")
         # html_text = html.unescape(html_text)
 
@@ -298,8 +301,8 @@ class OnlineSearch():
                                 ['class="wp-block-syntaxhighlighter-code ', ''],
                                 ['class="wp-block-code language-python">', ''],
                                 ['class="wp-block-codemirror-blocks-code-block code-block">', ''],
-                                ['class="wp-block-code>', ''],
-                                ['class="wp-block-', ''],
+                                ['class="wp-block-code">', ''],
+                                ['class="wp-block', ''],
                                 ['class="language-python">', ''],
                                 ['class="“language-python”">', ''],
                                 ['class="language-clike', ''],
@@ -634,6 +637,9 @@ class OnlineSearch():
         """
         code_lines = []
         for line in code_block:
+            if line.find("\n") == -1:
+                if len(line) > 400:
+                    line = line[:400]
             if line_delimiter[-1] == ">":
                 line = ">" + line
             code_line = ""
