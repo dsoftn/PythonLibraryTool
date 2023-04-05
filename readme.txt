@@ -74,3 +74,10 @@ Click on a search result to find it in the tree view.
  # ________________________
 #  Author: DsoftN, March 2023.
 
+
+Other shortcuts:
+   Ctrl + Enter = Show this ReadMe
+   Ctrl + S = Add current page to navigation line
+   Ctrl + O = Open Python file and show code
+   Ctrl + V = Show Python code from clipboard
+   Ctrl + T = Open URL and show Python code if any

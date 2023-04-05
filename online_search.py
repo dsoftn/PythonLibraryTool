@@ -69,7 +69,11 @@ class OnlineSearch():
         else:
             url = f"https://lite.duckduckgo.com/lite/search?q={keyword}+{self._full_object_name.replace('.', '+')}"
         # Get Duck search page source code
-        result_page = urllib.request.urlopen(url)
+        try:
+            result_page = urllib.request.urlopen(url)
+        except Exception as e:
+            self._error_message = str(e)
+            return
         html = result_page.read().decode("utf-8")
         # Parse html with BeautifulSoup
         soup = bs(html, "lxml")
@@ -109,7 +113,7 @@ class OnlineSearch():
         if not self._code_urls:
             self._duck_search_for_code(site_url=site, keyword=keyword)
             if not self._code_urls:
-                return
+                return None
         return self._code_urls
 
     def get_search_results_for_docs(self, full_object_name: str = ""):
@@ -259,9 +263,9 @@ class OnlineSearch():
             list: [code_title, code_text]
         """
         # For GeeksForGeeks call specific function
-        # if url.find("www,geeksforgeeks.org") >= 0:
-        #     result = self.get_code_examples_geeks_for_geeks(url)
-        #     return result
+        if url.find("www.geeksforgeeks.org") >= 0:
+            result = self.get_code_examples_geeks_for_geeks(url)
+            return result
         # Get url content
         try:
             html_text = requests.get(url).text
@@ -345,6 +349,7 @@ class OnlineSearch():
                             '<code class="hljs language-python">',
                             'class="crayon-line',
                             '<code>',
+                            '<br>',
                             '<br/>',
                             '<<span class="',
                             '<DsoftN>' ]
@@ -576,6 +581,8 @@ class OnlineSearch():
         
         # Global rules
         html_text = html_text.replace('title">', "DsoftN> ")
+        html_text = html_text.replace("&ensp;", "")
+        html_text = html_text.replace(' <code class="hljs python">', '<code class="hljs python">')
         # html_text = html_text.replace('class="title">', "DsoftN> ")
         # html_text = html_text.replace('span class="hljs-title">', "DsoftN> ")
 

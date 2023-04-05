@@ -207,7 +207,8 @@ class TxtBoxPrinter(QThread):
         quota_mode = 0
         big_quota_mode = False
         bracket_n = 0
-        for code_line in code_body:
+        continue_import_line = 0
+        for code_line_number, code_line in enumerate(code_body):
             if self.abort_print:
                 break
             code_line = code_line.rstrip()
@@ -225,7 +226,24 @@ class TxtBoxPrinter(QThread):
             else:
                 quota_mode = 0
             if quota_mode == 0:
-                self._check_import(code_line)
+                # Check is this import line and are this multiline import
+                if code_line.find("#") >= 0:
+                    cd_line = code_line[:code_line.find("#")]
+                else:
+                    cd_line = code_line
+
+                if cd_line.find("import") >= 0 and cd_line.find("(") >= 0:
+                    continue_import_line += 1
+                if continue_import_line > 0 and cd_line.find("import") == -1 and cd_line.find("(") > 0:
+                    continue_import_line += 1
+                if continue_import_line > 0:
+                    if cd_line.find(")") >= 0:
+                        continue_import_line -= 1
+                    cd_line = cd_line.replace(")", " ")
+                    cd_line = cd_line.replace("(", " ")
+                    if cd_line.find("import") == -1:
+                        cd_line = "import " + cd_line
+                self._check_import(cd_line)
             word = ""
             color = "white"
             comment_mode = False

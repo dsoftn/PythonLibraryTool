@@ -267,6 +267,10 @@ class Analyzer(QtWidgets.QMainWindow):
         box.print_text("Search in: ", "size=18, color=black, n=false")
         box.print_text(search_in, "size=18, color=dark green, bold=true")
         box.print_text("", "size=20")
+        if urls is None:
+            box.print_text("No results found.", "size=20")
+            box.print_text(self.online.get_error_message(), "size=20, c=red")
+            return
         count = 1
         for url in urls:
             box.print_text(f"Search result ({count}):  ", "bc=light grey, size=14, bold=true, color=dark green, font_name=fixed, n=false")
@@ -1232,6 +1236,10 @@ class Analyzer(QtWidgets.QMainWindow):
         box.print_text("Search in: ", "size=18, color=black, n=false")
         box.print_text("All Web Sites", "size=18, color=dark green, bold=true")
         box.print_text("", "size=20")
+        if urls is None:
+            box.print_text("No results found.", "size=20")
+            box.print_text(self.online.get_error_message(), "size=20, c=red")
+            return
         count = 1
         for url in urls:
             box.print_text(f"Search result ({count}):  ", "bc=light grey, size=14, bold=true, color=dark green, font_name=fixed, n=false")

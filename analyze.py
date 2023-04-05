@@ -119,5 +119,5 @@ class IspitajObjekat():
 
 class do_it():
     def __init__(self):
-        import urllib
-        i = IspitajObjekat(urllib)
+        import How to change cursor shape in QLineEdit
+        i = IspitajObjekat(How to change cursor shape in QLineEdit)
