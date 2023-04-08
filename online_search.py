@@ -252,7 +252,7 @@ class OnlineSearch():
             for code_line in code_block:
                 line = code_line.getText().replace("\xa0", " ")+"\n"
                 code_text = code_text + line
-            code_examples.append([f"Code Example ({str(count)})", code_text])
+            code_examples.append([f"(www.geekforgeeks.org): Code Example ({str(count)})", code_text])
             count += 1
         return code_examples
 

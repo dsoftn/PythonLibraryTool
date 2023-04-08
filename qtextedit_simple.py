@@ -205,27 +205,28 @@ class TxtBoxPrinter(QThread):
         self.code_dict = self._init_code_dict()
 
         quota_mode = 0
-        big_quota_mode = False
+        big_quota_mode = ""
         bracket_n = 0
         continue_import_line = 0
         for code_line_number, code_line in enumerate(code_body):
             if self.abort_print:
                 break
-            code_line = code_line.rstrip()
+            if not big_quota_mode:
+                code_line = code_line.rstrip()
             code_line = " " + code_line + " "*(max_len-len(code_line)+1)
 
-            line_text = code_line.strip()
-            tmp = line_text.find('"""')
-            if tmp >= 0:
-                if line_text[:3] == '"""' or line_text[-3:] == '"""':
-                    big_quota_mode = not big_quota_mode
-                    if line_text[tmp+2:].find('"""') >= 0:
-                        big_quota_mode = not big_quota_mode
-            if big_quota_mode:
-                quota_mode = 1
-            else:
-                quota_mode = 0
-            if quota_mode == 0:
+            # line_text = code_line.strip()
+            # tmp = line_text.find('"""')
+            # if tmp >= 0:
+            #     if line_text[:3] == '"""' or line_text[-3:] == '"""':
+            #         big_quota_mode = not big_quota_mode
+            #         if line_text[tmp+2:].find('"""') >= 0:
+            #             big_quota_mode = not big_quota_mode
+            # if big_quota_mode:
+            #     quota_mode = 1
+            # else:
+            #     quota_mode = 0
+            if not big_quota_mode:
                 # Check is this import line and are this multiline import
                 if code_line.find("#") >= 0:
                     cd_line = code_line[:code_line.find("#")]
@@ -248,19 +249,50 @@ class TxtBoxPrinter(QThread):
             color = "white"
             comment_mode = False
             object_method = False
-
+            quota_mode = 0
             count = 0
             end_line = len(code_line)
             for char in code_line:
                 count += 1
-                if big_quota_mode:
-                    quota_mode = 1
-
                 if comment_mode:
                     color = self.code_dict["comm_c"]
                     self.print_text(code_line[count-1:], f"{flags_string}, n=false, color={color}")
                     break
-                elif quota_mode:
+
+                if big_quota_mode:
+                    color = self.code_dict["quota_c"]
+                    if code_line[count-1:].find(big_quota_mode*3) == -1:
+                        self.print_text(code_line[count-1:], f"{flags_string}, n=false, color={color}")
+                        break
+                    if char != big_quota_mode:
+                        self.print_text(char, f"{flags_string}, n=false, color={color}")
+                        continue
+                    else:
+                        if len(code_line) >= count + 2:
+                            if code_line[count-1:count+2] != char*3:
+                                self.print_text(char, f"{flags_string}, n=false, color={color}")
+                                continue
+                        else:
+                            self.print_text(char, f"{flags_string}, n=false, color={color}")
+                            continue
+
+                if char in self.code_dict["quota"] and not quota_mode:
+                    if len(code_line) >= count + 2:
+                        if code_line[count-1:count+2] == char*3:
+                            color = self.code_dict["quota_c"]
+                            if big_quota_mode:
+                                big_quota_mode = ""
+                                self.print_text(char, f"{flags_string}, n=false, color={color}")
+                                continue
+                            else:
+                                if word:
+                                    self._write_word(word, flags_string)
+                                    word = ""
+                                big_quota_mode = char
+                                self.print_text(char, f"{flags_string}, n=false, color={color}")
+                                continue
+
+                if quota_mode:
                     if word == "" and code_line[count-1:].strip() == "":
                         self.print_text(code_line[count-1:], f"{flags_string}, n=false")
                         break
@@ -334,9 +366,6 @@ class TxtBoxPrinter(QThread):
                     self._write_word(word, flags_string)
 
             self.print_text("", flags_string)
-            if big_quota_mode != quota_mode:
-                big_quota_mode = False
-                quota_mode = False
 
     def _delim_color(self, delim_char, bracket_n: int = 0):
         color = self.code_dict["delim_c"]
