@@ -435,7 +435,6 @@ class Analyzer(QtWidgets.QMainWindow):
     def frm_find_click(self):
         """Finds the object in the 'Tree' view.
         """
-        print (self.ui.frm_find.isVisible())
         item = None
         parent = self.ui.tree_lib.invisibleRootItem()
         result = self._find_item(parent, 0)
@@ -990,6 +989,17 @@ class Analyzer(QtWidgets.QMainWindow):
                 self.box.print_text(url, "c=dark green, bc=light grey, size=16")
                 self.box.print_text("")
                 self.show_code(url)
+        elif a0.key() == QtCore.Qt.Key_F and a0.modifiers() == QtCore.Qt.ControlModifier:
+            txt, _ = QtWidgets.QInputDialog.getText(self, "Find in this page", "Enter the expression you want to find:")
+            # txt = txt.lower()
+            if len(txt) > 2:
+                cursor = self.ui.txt_info.document().find(txt)
+                while not cursor.isNull():
+                    format =QtGui.QTextCharFormat()
+                    format.setBackground(QtGui.QColor("dark green"))
+                    format.setForeground(QtGui.QColor("yellow"))
+                    cursor.mergeCharFormat(format)
+                    cursor = self.ui.txt_info.document().find(txt, cursor)
 
         return super().keyPressEvent(a0)
 

@@ -120,4 +120,4 @@ class IspitajObjekat():
 class do_it():
     def __init__(self):
         import PyQt5
-        i = IspitajObjekat(PyQt5.QtWidgets.QFileDialog)
+        i = IspitajObjekat(PyQt5.QtWidgets.QLayout)

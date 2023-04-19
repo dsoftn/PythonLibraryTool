@@ -302,6 +302,9 @@ class TxtBoxPrinter(QThread):
                         continue
 
                 if char == "#":
+                    if word:
+                        self._write_word(word, flags_string)
+                        word = ""
                     comment_mode = True
                     color = self.code_dict["comm_c"]
                     self.print_text(char, f"{flags_string}, color={color}, n=false")
