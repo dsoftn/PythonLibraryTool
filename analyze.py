@@ -119,5 +119,5 @@ class IspitajObjekat():
 
 class do_it():
     def __init__(self):
-        import PyQt5
-        i = IspitajObjekat(PyQt5.QtWidgets.QLayout)
+        from json import _default_decoder
+        i = IspitajObjekat(_default_decoder)

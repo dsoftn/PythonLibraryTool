@@ -84,7 +84,6 @@ class Analyzer(QtWidgets.QMainWindow):
         # Show window
         self.show()
 
-
     def btn_setting_ok_click(self):
         # Save code example setting
         self.conn.set_setting_data("code_example_font_name", 0, self.ui.cmb_setting_font_name.currentText())
@@ -1338,7 +1337,7 @@ class Analyzer(QtWidgets.QMainWindow):
                 yy = self.contentsRect().height()-430
             if yy < 0:
                 yy = 0
-            self.ui.frm_setting.move(xx, yy)
+            self.ui.frm_setting.move(int(xx), int(yy))
         return super().mouseMoveEvent(a0)
     
     def mouseReleaseEvent(self, a0: QtGui.QMouseEvent) -> None:
@@ -1413,7 +1412,6 @@ class Analyzer(QtWidgets.QMainWindow):
         # Add fonts
         for family in QtGui.QFontDatabase().families():
             self.ui.cmb_setting_font_name.addItem(family)
-            
 
     def load_setting(self):
         """Loading settings. It is called at the start of the application.
