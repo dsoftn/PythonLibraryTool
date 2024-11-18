@@ -119,5 +119,5 @@ class IspitajObjekat():
 
 class do_it():
     def __init__(self):
-        from json import _default_decoder
-        i = IspitajObjekat(_default_decoder)
+        from PyQt5.QtGui.QTextCursor import End
+        i = IspitajObjekat(End)
